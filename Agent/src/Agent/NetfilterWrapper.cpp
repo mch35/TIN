@@ -5,13 +5,32 @@
  *      Author: root
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
+#include <arpa/inet.h>
+
+#include <libmnl/libmnl.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter/nfnetlink.h>
+
+#include <linux/types.h>
+#include <linux/netfilter/nfnetlink_queue.h>
+
+#include <libnetfilter_queue/libnetfilter_queue.h>
+
 #include "NetfilterWrapper.h"
 #include "BlockingQueue.h"
 #include <pthread.h>
+#include <iostream>
+#include <ctime>
+#include <memory>
 
-BlockingQueue netfilterQueue;
+std::shared_ptr<BlockingQueue<nfq_data>> _internalNetfilterQueue(new BlockingQueue<nfq_data>);
 
-NetfilterWrapper::NetfilterWrapper(int queueNumber) : queueNumber(queueNumber), isStarted(false) {
+NetfilterWrapper::NetfilterWrapper(int queueNumber) : queueNumber(queueNumber) {
 	this->openLibrary();
 	this->unbindHandler();
 	this->bindHandler();
@@ -76,6 +95,8 @@ void* NetfilterWrapper::copy()
 		nfq_handle_packet(h, buf, rv);
 	}
 
+	std::cout<<"closed================================";
+
 	return 0;
 }
 
@@ -87,24 +108,43 @@ void* NetfilterWrapper::copyHelper(void* ctx)
 
 NetfilterWrapper::~NetfilterWrapper() {
 	nfq_destroy_queue(qh);
+	nfq_close(h);
 }
 
-void NetfilterWrapper::start()
+pthread_t NetfilterWrapper::getThread()
 {
-
+	return worker;
 }
 
-void NetfilterWrapper::stop()
-{
+time_t __netfilterStarTime = 0;
+time_t __netfilterStopTime = 0;
 
+bool isInTime(struct nfq_data *tcpPacket)
+{
+	timeval packetTime;
+	nfq_get_timestamp(tcpPacket, &packetTime);
+	time_t tm = packetTime.tv_sec;
+
+	if(__netfilterStarTime < tm && tm < __netfilterStopTime)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 int callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data)
 {
-	netfilterQueue.add(nfa);
+	_internalNetfilterQueue->add(nfa);
+
 	struct nfqnl_msg_packet_hdr *ph;
 	ph = nfq_get_msg_packet_hdr(nfa);
 	int id = ntohl(ph->packet_id);
 
 	return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+}
+
+void NetfilterWrapper::stop()
+{
+	close(fd);
 }

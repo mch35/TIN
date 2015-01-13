@@ -9,9 +9,16 @@
 #define SRC_AGENT_NETFILTERWRAPPER_H_
 
 #include <netinet/in.h>
+#include <linux/netfilter.h>
+#include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_queue/libnetfilter_queue.h>
 #include <pthread.h>
 
+/**
+ * TODO: filtrowac tylko pakiety tcp
+ * TODO: niszczenie obiektu
+ * TODO: kopiowanie pakietów
+ */
 class NetfilterWrapper {
 	private:
 		//BlockingQueue queue;
@@ -22,7 +29,6 @@ class NetfilterWrapper {
 		int queueNumber;
 		char buf[4096] __attribute__ ((aligned));
 
-		bool isStarted;
 		pthread_t worker;
 
 		void openLibrary();
@@ -36,7 +42,8 @@ class NetfilterWrapper {
 		NetfilterWrapper(int queueNumber);
 		virtual ~NetfilterWrapper();
 
-		void start();
+		pthread_t getThread();
+
 		void stop();
 };
 
