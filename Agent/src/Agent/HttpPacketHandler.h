@@ -12,9 +12,11 @@
 #include <vector>
 #include <atomic>
 #include <memory>
+#include <ctime>
+
+#include "AgentTypes.h"
 #include "BlockingQueue.h"
 #include "communication.h"
-#include "packet.h"
 
 /**
  * Filtruje pakiety HTTP na podstawie aktualnie ustawionych granic czasowych.
@@ -36,6 +38,7 @@ class HttpPacketHandler {
 		pthread_mutex_t timeAccess;
 
 		std::atomic<bool> dataReady;
+		std::atomic<bool> running;
 
 		void* handleTcpPackets();
 		static void* handleTcpPacketsHelper(void*);

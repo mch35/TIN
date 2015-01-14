@@ -19,8 +19,8 @@
 
 using namespace std;
 
-Connector::Connector(HttpPacketHandler* agent, const char* serverAddress, const unsigned int serverPort) :
-		connectorThread(0), serverAddress(inet_addr(serverAddress)), serverPort(
+Connector::Connector(HttpPacketHandler* agent, in_addr serverAddress, const unsigned int serverPort) :
+		connectorThread(0), serverAddress(serverAddress), serverPort(
 				serverPort), serverSocket(0), agent(agent) {
 }
 
@@ -36,6 +36,7 @@ void Connector::listeningThreadBody() {
 			break;
 		}
 		command c = deserialize_command(buffer);
+		std::clog << "Received command " << c.type << std::endl;
 		switch (c.type) {
 		case START:
 			response[0] = (unsigned char) start(c.time);
@@ -46,7 +47,9 @@ void Connector::listeningThreadBody() {
 		case GET_DATA:
 			response[0] = (unsigned char) get_data();
 			break;
+		default: std::clog << "Unsupported command received!" << std::endl;
 		}
+
 		if ((send(serverSocket, response, 1, 0)) == -1) {
 			cout << "Failure sending message " << strerror(errno) << endl;
 			close (serverSocket);
@@ -95,36 +98,46 @@ Connector::~Connector() {
 
 pthread_t Connector::start() throw(std::runtime_error) {
 	struct sockaddr_in serv_addr;
+	clog << "Starting connector." << endl;
 
+	clog << "Creating socket... ";
 	if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		stop();
 		throw std::runtime_error(strerror(errno));
 	}
+	clog << "OK" <<  endl;
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(serverPort);
-	serv_addr.sin_addr.s_addr = serverAddress;
+	serv_addr.sin_addr = serverAddress;
 
+	clog << "Connecting to server " << inet_ntoa(serv_addr.sin_addr) << ":" << serverPort <<"... ";
 	if (connect(serverSocket, (struct sockaddr *) &serv_addr, sizeof(serv_addr))
 			< 0) {
-		stop();
 		throw std::runtime_error(strerror(errno));
 	}
+	clog << "OK" <<  endl;
 
+	clog << "Creating thread... ";
 	if(pthread_create(&connectorThread, 0, &Connector::listeningThreadBodyHelper, this) != 0)
 	{
-		stop();
-		throw std::runtime_error("Error while creating new thread!");
+		throw std::runtime_error(strerror(errno));
 	}
+	clog << "OK" <<  endl;
+
+	clog << "Connector started." << endl;
 
 	return connectorThread;
 }
 
 void Connector::stop()
 {
-	close(serverSocket);
+	clog << "Stopping connector" << endl;
+
 	connectorThread = 0;
 	serverSocket = 0;
+	close(serverSocket);
+
+	clog << "Connector stopped." << endl;
 }
 
 time_t startTime;
@@ -135,7 +148,7 @@ ClientResponse Connector::start(time_t when) {
 	return OK;
 }
 ClientResponse Connector::stop(time_t when) {
-	stopTime = startTime + 5;
+	stopTime = startTime + 1000000;
 	try
 	{
 		agent->setTimeBounds(startTime, stopTime);
@@ -150,13 +163,15 @@ ClientResponse Connector::stop(time_t when) {
 ClientResponse Connector::get_data() {
 	if(agent->isDataReady())
 	{
-		cout << "data!" << endl;
 		return OK;
 	}
 
-	cout << "no data!" << endl;
+	std::clog << "Data not ready yet!" << std::endl;
+
 	return ERROR;
 }
 vector<std::shared_ptr<request_data>>* Connector::get_data_records() {
-	return agent->getData();
+	auto packets = agent->getData();
+	std::clog << "Prepared " << packets->size() << " packets." << std::endl;
+	return packets;
 }

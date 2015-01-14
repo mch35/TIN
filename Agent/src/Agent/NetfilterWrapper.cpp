@@ -28,45 +28,21 @@
 #include <ctime>
 #include <memory>
 #include <regex>
-#include "packet.h"
+
+#include "AgentTypes.h"
 
 using namespace std;
 
-std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> _internalNetfilterQueue(new BlockingQueue<std::shared_ptr<Packet>>);
+NetfilterWrapper::NetfilterWrapper(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpPacketsQueue, int queueNumber) :
+		tcpPacketsQueue(tcpPacketsQueue), qh(0), fd(0), rv(0), queueNumber(queueNumber), worker(0) {
 
-NetfilterWrapper::NetfilterWrapper(int queueNumber) :
-		rv(0), queueNumber(queueNumber), worker(0) {
-
-	clog << "Opening Netfilter Library handle\n";
+	clog << "Opening Netfilter Library handle...";
 	this->h = nfq_open();
 	if (!h) {
-		throw runtime_error("Error while opening Netfilter Library!");
+		throw runtime_error(strerror(errno));
 	}
 
-	clog << "Unbinding existing nf_queue handler for AF_INET (if any)\n";
-	if (nfq_unbind_pf(h, AF_INET) < 0) {
-		throw runtime_error("Error while existing queue handlers unbinding!\n");
-	}
-
-	clog << "Binding nf_queue handler for AF_INET\n";
-	if (nfq_bind_pf(h, AF_INET) < 0) {
-		throw runtime_error("Error while binding new queue handler!\n");
-	}
-
-	clog << "Binding handle to queue nr: " << queueNumber << "\n";
-	qh = nfq_create_queue(h, queueNumber, &callback, NULL);
-	if (!qh) {
-		throw runtime_error(
-				"Error while binding handle to queue nr: " + to_string(queueNumber) + "\n");
-	}
-
-	clog << "Setting copy packet mode\n";
-	if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
-		throw runtime_error("Can't set copy packet mode\n");
-	}
-
-	fd = nfq_fd(h);
-
+	clog << "OK" << endl;
 }
 
 void* NetfilterWrapper::copy() {
@@ -86,72 +62,93 @@ NetfilterWrapper::~NetfilterWrapper() {
 }
 
 pthread_t NetfilterWrapper::start() {
+	clog << "Staring Netfilter." << endl;
+	clog << "Unbinding existing nf_queue handler for AF_INET (if any)... ";
+	if (nfq_unbind_pf(h, AF_INET) < 0) {
+		throw runtime_error(strerror(errno));
+	}
+	clog << "OK" << endl;
+
+	clog << "Binding nf_queue handler for AF_INET... ";
+	if (nfq_bind_pf(h, AF_INET) < 0) {
+		throw runtime_error(strerror(errno));
+	}
+	clog << "OK" << endl;
+
+	clog << "Binding handle to queue " << queueNumber << "... ";
+	qh = nfq_create_queue(h, queueNumber, &NetfilterWrapper::netfilterQueueHandlerHelper, (void*)this);
+	if (!qh) {
+		throw runtime_error(strerror(errno));
+	}
+	clog << "OK" << endl;
+
+	clog << "Setting copy packet mode... ";
+	if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
+		throw runtime_error(strerror(errno));
+	}
+	clog << "OK" << endl;
+
+	fd = nfq_fd(h);
+
+	clog << "Creating thread... ";
 	if (pthread_create(&worker, NULL, &NetfilterWrapper::copyHelper, this)
 			!= 0) {
 		stop();
-		throw runtime_error("Error while creating new thread!");
+		throw runtime_error(strerror(errno));
 	}
+	clog << "OK" << endl;
+
+	clog << "Netfilter started." << endl;
 
 	return worker;
 }
 
-int callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-		struct nfq_data *nfa, void *data) {
+int NetfilterWrapper::netfilterQueueHandler(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		struct nfq_data *nfa) {
 	unsigned char* payload;
 	int payloadSize = nfq_get_payload(nfa, &payload);
 	struct nfqnl_msg_packet_hdr *ph;
 	ph = nfq_get_msg_packet_hdr(nfa);
 	int id = ntohl(ph->packet_id);
-	try {
-		if (payloadSize > 0) {
-			std::shared_ptr<Packet> packet(new Packet());
-			packet->ip_header = *((struct iphdr *) payload);
-			packet->tcp_header = *(struct tcphdr*) (payload
-					+ sizeof(packet->ip_header));
-			packet->nfq_header = *ph;
-			int ipTcpHeaderLength = (sizeof(packet->ip_header)
-					+ (packet->tcp_header.doff * 4));
-			packet->dataLength = payloadSize - ipTcpHeaderLength;
-			packet->data = (unsigned char *) (payload + ipTcpHeaderLength);
-			timeval packetTime;
-			if (nfq_get_timestamp(nfa, &packetTime) != 0) {
-				throw std::runtime_error(strerror(errno));
-			}
-			packet->timestamp = packetTime.tv_sec;
-			/*
-			 {
-			 cout << "nfqheader: " << sizeof(packet->nfq_header) << endl;
-			 cout << "ipheader: " << sizeof(packet->ip_header) << endl;
-			 cout << "tcpheader: " << sizeof(packet->tcp_header) << endl;
-			 cout << "tcpOffset: " << (packet->tcp_header.doff * 4) << endl;
 
-			 cout << "payloadSize: " << payloadSize << endl;
-			 cout << "dataLength " << packet->dataLength << endl;
-			 in_addr addr;
-			 addr.s_addr = packet->ip_header.daddr;
-			 cout << inet_ntoa(addr) << endl;
+	if (payloadSize > 0) {
+		std::shared_ptr<Packet> packet(new Packet());
+		packet->ip_header = *((struct iphdr *) payload);
+		packet->tcp_header = *(struct tcphdr*) (payload
+				+ sizeof(packet->ip_header));
+		packet->nfq_header = *ph;
+		int ipTcpHeaderLength = (sizeof(packet->ip_header)
+				+ (packet->tcp_header.doff * 4));
+		packet->dataLength = payloadSize - ipTcpHeaderLength;
+		packet->data = (unsigned char *) (payload + ipTcpHeaderLength);
 
-			 std::cout << "\n=============================\n";
-			 char buf[4096];
-			 nfq_snprintf_xml(buf, sizeof(buf), nfa, NFQ_XML_PAYLOAD);
-			 std::cout << buf;
-			 std::cout << "\n=============================\n";
-			 }
-			 */
-			if (packet->dataLength > 0) {
-				_internalNetfilterQueue->add(packet);
-			}
-
+		timeval packetTime;
+		if (nfq_get_timestamp(nfa, &packetTime) != 0) {
+			packetTime.tv_sec = time(0); // timestap niezawsze jest ustawiany
 		}
-	} catch (const std::runtime_error& e) {
-		std::clog << "Corrupted packet!\n";
+		packet->timestamp = packetTime.tv_sec;
+
+		if (packet->dataLength > 0) {
+			tcpPacketsQueue->add(packet);
+		}
 	}
 
 	return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
+int NetfilterWrapper::netfilterQueueHandlerHelper(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		struct nfq_data *nfa, void *data)
+{
+	return ((NetfilterWrapper*)data)->netfilterQueueHandler(qh, nfmsg, nfa);
+}
+
 void NetfilterWrapper::stop() {
-	close(fd);
-	nfq_destroy_queue(qh);
-	nfq_close(h);
+	clog << "Stopping Netfilter." << endl;
+
+	int ret = 0;
+	ret += close(fd);
+	ret += nfq_destroy_queue(qh);
+	ret += nfq_close(h);
+
+	clog << "Netfilter stopped." << endl;
 }

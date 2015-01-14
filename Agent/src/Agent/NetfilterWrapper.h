@@ -13,6 +13,10 @@
 #include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_queue/libnetfilter_queue.h>
 #include <pthread.h>
+#include <memory>
+
+#include "AgentTypes.h"
+#include "BlockingQueue.h"
 
 /**
  * Wrapper biblioteki netfilter. Obsługuje kolejkę biblioteki
@@ -21,6 +25,7 @@
  */
 class NetfilterWrapper {
 	private:
+		std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpPacketsQueue;
 		struct nfq_handle *h;
 		struct nfq_q_handle *qh;
 		int fd;
@@ -32,8 +37,14 @@ class NetfilterWrapper {
 
 		void* copy();
 		static void* copyHelper(void* ctx);
+
+		int netfilterQueueHandler(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+				struct nfq_data *nfa);
+
+		static int netfilterQueueHandlerHelper(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+						struct nfq_data *nfa, void *data);
 	public:
-		NetfilterWrapper(int queueNumber);
+		NetfilterWrapper(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpPacketsQueue, int queueNumber);
 		virtual ~NetfilterWrapper();
 
 		/**
@@ -48,6 +59,6 @@ class NetfilterWrapper {
 		void stop();
 };
 
-int callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data);
+int netfilterQueueHandler(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data);
 
 #endif /* SRC_AGENT_NETFILTERWRAPPER_H_ */

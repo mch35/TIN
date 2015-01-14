@@ -9,6 +9,9 @@
 #define SRC_AGENT_CONNECTOR_H_
 
 #include <vector>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <memory>
 #include "HttpPacketHandler.h"
 #include "communication.h"
 
@@ -20,7 +23,7 @@ class Connector
 {
 private:
 	pthread_t connectorThread;
-	in_addr_t serverAddress;
+	in_addr serverAddress;
 	unsigned int serverPort;
 
 	int serverSocket;
@@ -36,7 +39,7 @@ private:
 	// !!! STUB !!! tylko do testowania !!!
 	HttpPacketHandler* agent;
 public:
-	Connector(HttpPacketHandler* agent, const char* serverAddress, const unsigned int serverPort);
+	Connector(HttpPacketHandler* agent, in_addr serverAddress, const unsigned int serverPort);
 	virtual ~Connector();
 
 	/**
