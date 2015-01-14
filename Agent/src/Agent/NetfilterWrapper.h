@@ -15,9 +15,9 @@
 #include <pthread.h>
 
 /**
- * TODO: filtrowac tylko pakiety tcp
- * TODO: niszczenie obiektu
- * TODO: kopiowanie pakietów
+ * Wrapper biblioteki netfilter. Obsługuje kolejkę biblioteki
+ * i wrzuca pakiety tcp do przekazanej kolejki w konstruktorze.
+ *
  */
 class NetfilterWrapper {
 	private:
@@ -30,19 +30,21 @@ class NetfilterWrapper {
 
 		pthread_t worker;
 
-		void openLibrary();
-		void unbindHandler();
-		void bindHandler();
-		void createQueue(nfq_callback *cb);
-		void setMode();
 		void* copy();
 		static void* copyHelper(void* ctx);
 	public:
 		NetfilterWrapper(int queueNumber);
 		virtual ~NetfilterWrapper();
 
+		/**
+		 * Rozpoczyna przekazywanie pakietow do kolejki.
+		 *
+		 */
 		pthread_t start();
 
+		/**
+		 * Zatrzymuje przekazywanie pakietow do kolejki.
+		 */
 		void stop();
 };
 
