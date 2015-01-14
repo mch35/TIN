@@ -6,6 +6,7 @@
  */
 
 #include "Connector.h"
+#include "communication.h"
 #include <sys/socket.h>
 #include <errno.h>
 #include <stdio.h>
@@ -32,7 +33,7 @@ void Connector::listeningThreadBody() {
 		num = recv(serverSocket, buffer, COMMAND_LENGTH, 0);
 
 		if (num <= 0) {
-			cout << "Connection closed or error " << strerror(errno) << endl;
+			std::clog << "Connection closed." << std::endl;
 			break;
 		}
 		command c = deserialize_command(buffer);
@@ -81,8 +82,6 @@ void Connector::listeningThreadBody() {
 			delete data;
 		}
 	}
-
-	stop();
 }
 
 void* Connector::listeningThreadBodyHelper(void* ctx)

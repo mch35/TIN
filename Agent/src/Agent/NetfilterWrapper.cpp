@@ -36,7 +36,7 @@ using namespace std;
 NetfilterWrapper::NetfilterWrapper(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpPacketsQueue, int queueNumber) :
 		tcpPacketsQueue(tcpPacketsQueue), qh(0), fd(0), rv(0), queueNumber(queueNumber), worker(0) {
 
-	clog << "Opening Netfilter Library handle...";
+	clog << "Opening Netfilter Library handle... ";
 	this->h = nfq_open();
 	if (!h) {
 		throw runtime_error(strerror(errno));
@@ -145,10 +145,16 @@ int NetfilterWrapper::netfilterQueueHandlerHelper(struct nfq_q_handle *qh, struc
 void NetfilterWrapper::stop() {
 	clog << "Stopping Netfilter." << endl;
 
-	int ret = 0;
-	ret += close(fd);
-	ret += nfq_destroy_queue(qh);
-	ret += nfq_close(h);
+	close(fd);
+	if(qh != 0)
+	{
+		nfq_destroy_queue(qh);
+	}
+
+	if(h != 0)
+	{
+		nfq_close(h);
+	}
 
 	clog << "Netfilter stopped." << endl;
 }
