@@ -7,17 +7,13 @@
 
 #ifndef SRC_AGENT_HTTPPACKETHANDLER_H_
 #define SRC_AGENT_HTTPPACKETHANDLER_H_
-/*#include <netinet/in.h>
-#include <linux/netfilter.h>
-#include <libnetfilter_queue/libnetfilter_queue.h>
-#include <pthread.h>*/
+
+#include <pthread.h>
 #include <vector>
-#include "communication.h"
 #include <atomic>
 #include <memory>
 #include "BlockingQueue.h"
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
+#include "communication.h"
 #include "packet.h"
 
 /**
@@ -62,44 +58,10 @@ class HttpPacketHandler {
 			return copy;
 		}
 
-		void setStartTime(time_t startTime, time_t stopTime) {
-			if(startTime > stopTime)
-			{
-				throw logic_error("Start time have to be less than stop time!");
-			}
-
-			// blokuje zeby wszystkie pakiety od teraz zalapaly sie do nowego pomiaru
-			pthread_mutex_lock(&timeAccess);
-			if(startTime < time(0))
-			{
-				pthread_mutex_unlock(&timeAccess);
-				throw logic_error("Start time have to be greater than current time!");
-			}
-
-			this->startTime = startTime;
-			this->stopTime = stopTime;
-			this->httpPackets.clear();
-			this->dataReady.store(false);
-
-			std::cout << "Starting new filtering. Start: " << ctime(&startTime) << " Stop: " << ctime(&stopTime) << std::endl;
-			pthread_mutex_unlock(&timeAccess);
-		}
-
-		time_t getStopTime() {
-			pthread_mutex_lock(&timeAccess);
-			time_t copy = stopTime;
-			pthread_mutex_unlock(&timeAccess);
-
-			return copy;
-		}
-
-		void setStopTime(time_t stopTime) {
-			pthread_mutex_lock(&timeAccess);
-			this->stopTime = stopTime;
-			this->httpPackets.clear();
-			this->dataReady.store(false);
-			pthread_mutex_unlock(&timeAccess);
-		}
+		/**
+		 * Ustawia granice czasowe, w których musi mieścić się pakiet http, żeby zostać zapisanym.
+		 */
+		void setTimeBounds(time_t startTime, time_t stopTime);
 
 		/**
 		 * Zwraca prawdę jeżeli zapisano wszystkie dane dla aktualnie zdefiniowanych granic czasowych
@@ -108,6 +70,10 @@ class HttpPacketHandler {
 		const bool isDataReady() const {
 			return dataReady.load();
 		}
+
+		pthread_t start();
+		void stop();
 };
+
 
 #endif /* SRC_AGENT_HTTPPACKETHANDLER_H_ */

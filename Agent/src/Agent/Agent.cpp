@@ -137,10 +137,6 @@
 //	exit(0);
 //}
 
-/*#include <netinet/in.h>
-#include <linux/netfilter.h>
-#include <libnfnetlink/libnfnetlink.h>
-#include <libnetfilter_queue/libnetfilter_queue.h>*/
 #include "NetfilterWrapper.h"
 #include "BlockingQueue.h"
 #include "HttpPacketHandler.h"
@@ -150,39 +146,37 @@
 
 extern std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> _internalNetfilterQueue;
 
-int main(int argc, char **argv)
-{
-	NetfilterWrapper* wrapper = new NetfilterWrapper(0);
-	HttpPacketHandler* handler = new HttpPacketHandler(_internalNetfilterQueue);
-	Connector* connector = new Connector(handler, "127.0.0.1", 5000);
-	try
-	{
-		connector->start();
-	}
-	catch(const std::runtime_error& e)
-	{
+int main(int argc, char **argv) {
+
+	pthread_t wrapperThread;
+	NetfilterWrapper* wrapper;
+
+	pthread_t handlerThread;
+	HttpPacketHandler* handler;
+
+	pthread_t connectorThread;
+	Connector* connector;
+
+	try {
+		wrapper = new NetfilterWrapper(0);
+		wrapperThread = wrapper->start();
+
+		handler = new HttpPacketHandler(_internalNetfilterQueue);
+		handlerThread = handler->start();
+
+		connector = new Connector(handler, "127.0.0.1", 5000);
+		connectorThread = connector->start();
+
+		pthread_join(wrapperThread, NULL);
+		pthread_join(handlerThread, NULL);
+		pthread_join(connectorThread, NULL);
+	} catch (const std::runtime_error& e) {
 		std::cout << e.what() << std::endl;
+
+		delete wrapper;
+		delete handler;
+		delete connector;
 	}
-/*
-	time_t startTime = time(0) + 10;
-	time_t stopTime =  startTime + 5;
-
-	handler->startFiltering(&startTime, &stopTime);
-
-	while(time(0)<(stopTime+5));
-
-	vector<request_data>* httpPackets = handler->getHttpPackets();
-	std::cout << "START: " << startTime << std::endl;
-	for(auto packet : *httpPackets)
-	{
-		std::cout << "Packet: ";
-		std::cout << packet.receiver_ip.s_addr << " " << packet.time << std::endl;
-	}
-	std::cout << "STOP: " << stopTime << std::endl;
-*/
-	pthread_join(wrapper->getThread(), NULL);
-	delete wrapper;
-	delete handler;
 
 	return 0;
 }

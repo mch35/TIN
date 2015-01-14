@@ -8,20 +8,9 @@
 #ifndef SRC_AGENT_CONNECTOR_H_
 #define SRC_AGENT_CONNECTOR_H_
 
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <arpa/inet.h>
 #include <vector>
 #include "HttpPacketHandler.h"
 #include "communication.h"
-#include "AgentExceptions.h"
 
 /**
  * Pozwala na komunikację z serwerem.
@@ -30,7 +19,7 @@
 class Connector
 {
 private:
-	pthread_t listener;
+	pthread_t connectorThread;
 	in_addr_t serverAddress;
 	unsigned int serverPort;
 
@@ -54,7 +43,7 @@ public:
 	 * Rozpoczyna nasluchiwanie na danym porcie
 	 *
 	 */
-	void start() throw(std::runtime_error);
+	pthread_t start() throw(std::runtime_error);
 
 	/**
 	 * Zatrzymuje nasluchiwanie na danym porcie

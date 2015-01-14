@@ -17,7 +17,7 @@ typedef struct _packet
 	struct iphdr ip_header;
 	struct tcphdr tcp_header;
 	unsigned int dataLength;
-	char* data;
+	unsigned char* data;
 	time_t timestamp;
 } Packet;
 

@@ -6,11 +6,21 @@
  */
 
 #include "Connector.h"
+#include <sys/socket.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <string.h>
+#include <arpa/inet.h>
 
 using namespace std;
 
 Connector::Connector(HttpPacketHandler* agent, const char* serverAddress, const unsigned int serverPort) :
-		listener(0), serverAddress(inet_addr(serverAddress)), serverPort(
+		connectorThread(0), serverAddress(inet_addr(serverAddress)), serverPort(
 				serverPort), serverSocket(0), agent(agent) {
 }
 
@@ -83,7 +93,7 @@ Connector::~Connector() {
 	stop();
 }
 
-void Connector::start() throw(std::runtime_error) {
+pthread_t Connector::start() throw(std::runtime_error) {
 	struct sockaddr_in serv_addr;
 
 	if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -101,13 +111,19 @@ void Connector::start() throw(std::runtime_error) {
 		throw std::runtime_error(strerror(errno));
 	}
 
-	pthread_create(&listener, 0, &Connector::listeningThreadBodyHelper, this);
+	if(pthread_create(&connectorThread, 0, &Connector::listeningThreadBodyHelper, this) != 0)
+	{
+		stop();
+		throw std::runtime_error("Error while creating new thread!");
+	}
+
+	return connectorThread;
 }
 
 void Connector::stop()
 {
 	close(serverSocket);
-	listener = 0;
+	connectorThread = 0;
 	serverSocket = 0;
 }
 
@@ -122,7 +138,7 @@ ClientResponse Connector::stop(time_t when) {
 	stopTime = startTime + 5;
 	try
 	{
-		agent->setStartTime(startTime, stopTime);
+		agent->setTimeBounds(startTime, stopTime);
 	}
 	catch(exception& e)
 	{

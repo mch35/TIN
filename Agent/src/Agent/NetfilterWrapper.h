@@ -21,7 +21,6 @@
  */
 class NetfilterWrapper {
 	private:
-		//BlockingQueue queue;
 		struct nfq_handle *h;
 		struct nfq_q_handle *qh;
 		int fd;
@@ -42,7 +41,7 @@ class NetfilterWrapper {
 		NetfilterWrapper(int queueNumber);
 		virtual ~NetfilterWrapper();
 
-		pthread_t getThread();
+		pthread_t start();
 
 		void stop();
 };
