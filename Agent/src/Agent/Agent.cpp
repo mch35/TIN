@@ -8,11 +8,23 @@
 
 AgentArgs* parseArgs(int argc, char **argv)
 {
-	argc -=1;
+	AgentArgs* args = new AgentArgs();
+
+	if(argc == 2)
+	{
+		std::string arg = argv[1];
+		if(arg == "-h")
+		{
+			args->h = true;
+			return args;
+		}
+	}
+
+	argc -= 1;
+
 	if(argc > 6 || argc%2 != 0)
 		throw std::runtime_error("Invalid argument!");
 
-	AgentArgs* args = new AgentArgs();
 
 	for(int i = 1; i < argc; i+=2)
 	{
@@ -54,7 +66,8 @@ AgentArgs* parseArgs(int argc, char **argv)
 
 void usage()
 {
-	std::cout << "Valid usage: [-i] | [-p] | [-q]" << std::endl;
+	std::cout << "Valid usage: Agent [-i] | [-p] | [-q]" << std::endl;
+	std::cout << "\t-h - help" << std::endl;
 	std::cout << "\t-i - server IP address (default 127.0.0.1)" << std::endl;
 	std::cout << "\t-p - server port (default 5000)" << std::endl;
 	std::cout << "\t-i - queue number to be used  (default 0)" << std::endl;
@@ -77,7 +90,11 @@ int main(int argc, char **argv) {
 	try
 	{
 		args = parseArgs(argc, argv);
-
+		if(args->h)
+		{
+			usage();
+			exit(0);
+		}
 	} catch (const std::runtime_error& e) {
 		std::clog << "Error: " << e.what() << std::endl;
 		usage();

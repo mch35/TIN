@@ -14,3 +14,5 @@ http://www.netfilter.org/projects/libnetfilter_queue/downloads.html
 	
 2. Ustawienie iptables
 sudo iptables -A OUTPUT -p tcp -j NFQUEUE –queue-num 0
+
+3. Agent musi zostać uruchomiony z prawami roota.

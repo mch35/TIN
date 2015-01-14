@@ -18,8 +18,9 @@ typedef struct _AgentArgs
 	in_addr i;
 	unsigned int p;
 	unsigned int q;
+	bool h;
 
-	_AgentArgs() : p(5000), q(0)
+	_AgentArgs() : p(5000), q(0), h(false)
 	{
 		i.s_addr = inet_addr("127.0.0.1");
 	}
