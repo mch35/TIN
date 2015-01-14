@@ -28,7 +28,11 @@
 #include <ctime>
 #include <memory>
 
-std::shared_ptr<BlockingQueue<nfq_data>> _internalNetfilterQueue(new BlockingQueue<nfq_data>);
+#include "packet.h"
+
+using namespace std;
+
+std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> _internalNetfilterQueue(new BlockingQueue<std::shared_ptr<Packet>>);
 
 NetfilterWrapper::NetfilterWrapper(int queueNumber) : queueNumber(queueNumber) {
 	this->openLibrary();
@@ -93,6 +97,7 @@ void* NetfilterWrapper::copy()
 {
 	while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
 		nfq_handle_packet(h, buf, rv);
+		//stąd jakoś pobierać rv, żeby później wiedzieć jakiej długości dane.
 	}
 
 	std::cout<<"closed================================";
@@ -135,12 +140,74 @@ bool isInTime(struct nfq_data *tcpPacket)
 
 int callback(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data)
 {
-	_internalNetfilterQueue->add(nfa);
+	unsigned char* payload;
+	int payloadSize = nfq_get_payload(nfa, &payload);
+
+	try
+	{
+		if(payloadSize > 0)
+		{
+			std::shared_ptr<Packet> packet(new Packet());
+			packet->ip_header = *((struct iphdr *)payload);
+			packet->tcp_header = *(struct tcphdr*)(payload + sizeof(packet->ip_header));
+			packet->nfq_header = *nfq_get_msg_packet_hdr(nfa);
+			packet->dataLength = payloadSize - (sizeof(packet->ip_header) + (packet->tcp_header.doff * 4));
+			packet->data = (char *)((unsigned char *)&(packet->tcp_header) + (packet->tcp_header.doff * 4));
+			timeval packetTime;
+
+			packet->timestamp = packetTime.tv_sec;
+
+			{
+				cout << "nfqheader: " << sizeof(packet->nfq_header) << endl;
+				cout << "ipheader: " << sizeof(packet->ip_header) << endl;
+				cout << "tcpheader: " << sizeof(packet->tcp_header) << endl;
+				cout << "tcpOffset: " << (packet->tcp_header.doff * 4) << endl;
+
+				cout << "payloadSize: " << payloadSize << endl;
+				cout << "dataLength " << packet->dataLength << endl;
+				in_addr addr;
+				addr.s_addr = packet->ip_header.daddr;
+				cout << inet_ntoa(addr) << endl;
+/*
+				std::cout << "\n=============================\n";
+				char buf[4096];
+				nfq_snprintf_xml(buf, sizeof(buf), nfa, NFQ_XML_ALL);
+				std::cout << buf;
+				std::cout << "\n=============================\n";*/
+			}
+
+			if(packet->dataLength > 0)
+			{
+				for(int i = 0; i < packet->dataLength; ++i)
+				{
+					printf("%c", packet->data + i);
+				}
+			}
+			if(nfq_get_timestamp(nfa, &packetTime) != 0)
+			{
+				throw std::runtime_error(strerror(errno));
+			}
+
+			//_internalNetfilterQueue->add(packet);
+		}
+	}
+	catch(const std::runtime_error& e)
+	{
+		std::clog << "Corrupted packet!\n";
+	}
+	timeval packetTime;
+	nfq_get_timestamp(nfa, &packetTime);
 
 	struct nfqnl_msg_packet_hdr *ph;
 	ph = nfq_get_msg_packet_hdr(nfa);
 	int id = ntohl(ph->packet_id);
-
+	//std::cout << "id: " << id << " t: " << packetTime.tv_sec << std::endl;
+/*
+	char buf[4096];
+	std::cout << "\n=============================\n";
+	nfq_snprintf_xml(buf, sizeof(buf), nfa, NFQ_XML_ALL);
+	std::cout << buf;
+	delete nfa;*/
 	return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 

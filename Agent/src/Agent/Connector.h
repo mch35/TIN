@@ -54,7 +54,7 @@ public:
 	 * Rozpoczyna nasluchiwanie na danym porcie
 	 *
 	 */
-	void start() throw();
+	void start() throw(std::runtime_error);
 
 	/**
 	 * Zatrzymuje nasluchiwanie na danym porcie

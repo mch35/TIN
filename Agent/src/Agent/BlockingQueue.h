@@ -22,15 +22,15 @@
 
 template<typename T> class BlockingQueue {
 	private:
-		std::deque<T*> queue;
+		std::deque<T> queue;
 		pthread_mutex_t access;
 		pthread_cond_t empty;
 	public:
 		BlockingQueue();
 		virtual ~BlockingQueue();
 
-		void add(T* data);
-		T* get();
+		void add(T data);
+		T get();
 };
 
 template<typename T>
@@ -46,7 +46,7 @@ BlockingQueue<T>::~BlockingQueue() {
 }
 
 template<typename T>
-void BlockingQueue<T>::add(T* data)
+void BlockingQueue<T>::add(T data)
 {
 	pthread_mutex_lock(&access);
 	queue.push_back(data);
@@ -55,13 +55,13 @@ void BlockingQueue<T>::add(T* data)
 }
 
 template<typename T>
-T* BlockingQueue<T>::get()
+T BlockingQueue<T>::get()
 {
 	pthread_mutex_lock(&access);
 	while(queue.empty())
 		pthread_cond_wait(&empty, &access);
 
-	T* data = queue.front();
+	T data = queue.front();
 	queue.pop_front();
 	pthread_mutex_unlock(&access);
 

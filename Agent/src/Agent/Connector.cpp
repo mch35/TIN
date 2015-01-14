@@ -83,7 +83,7 @@ Connector::~Connector() {
 	stop();
 }
 
-void Connector::start() throw() {
+void Connector::start() throw(std::runtime_error) {
 	struct sockaddr_in serv_addr;
 
 	if ((serverSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {

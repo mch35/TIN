@@ -17,6 +17,8 @@
 #include <memory>
 #include "BlockingQueue.h"
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include "packet.h"
 
 /**
  * Filtruje pakiety HTTP na podstawie aktualnie ustawionych granic czasowych.
@@ -27,7 +29,7 @@
  */
 class HttpPacketHandler {
 	private:
-		std::shared_ptr<BlockingQueue<nfq_data>> tcpPacketsQueue;
+		std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpPacketsQueue;
 
 		time_t startTime;
 		time_t stopTime;
@@ -43,7 +45,7 @@ class HttpPacketHandler {
 		static void* handleTcpPacketsHelper(void*);
 		bool isInTime(time_t tcpPacket);
 	public:
-		HttpPacketHandler(std::shared_ptr<BlockingQueue<nfq_data>> tcpQueue);
+		HttpPacketHandler(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>>tcpQueue);
 		virtual ~HttpPacketHandler();
 
 		/**

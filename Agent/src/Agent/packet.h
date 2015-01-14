@@ -11,13 +11,14 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-struct _packet
+typedef struct _packet
 {
-	unsigned int dataLength;
 	struct nfqnl_msg_packet_hdr nfq_header;
 	struct iphdr ip_header;
 	struct tcphdr tcp_header;
+	unsigned int dataLength;
 	char* data;
+	time_t timestamp;
 } Packet;
 
 #endif /* SRC_AGENT_PACKET_H_ */

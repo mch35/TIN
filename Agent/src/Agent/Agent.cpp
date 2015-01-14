@@ -146,15 +146,23 @@
 #include "HttpPacketHandler.h"
 #include "Connector.h"
 #include <memory>
+#include "packet.h"
 
-extern std::shared_ptr<BlockingQueue<nfq_data>> _internalNetfilterQueue;
+extern std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> _internalNetfilterQueue;
 
 int main(int argc, char **argv)
 {
 	NetfilterWrapper* wrapper = new NetfilterWrapper(0);
 	HttpPacketHandler* handler = new HttpPacketHandler(_internalNetfilterQueue);
 	Connector* connector = new Connector(handler, "127.0.0.1", 5000);
-	connector->start();
+	try
+	{
+		connector->start();
+	}
+	catch(const std::runtime_error& e)
+	{
+		std::cout << e.what() << std::endl;
+	}
 /*
 	time_t startTime = time(0) + 10;
 	time_t stopTime =  startTime + 5;

@@ -11,7 +11,7 @@
 #include <fstream>
 #include <regex>*/
 
-HttpPacketHandler::HttpPacketHandler(std::shared_ptr<BlockingQueue<nfq_data>> tcpQueue) : tcpPacketsQueue(tcpQueue), startTime(0), stopTime(0) {
+HttpPacketHandler::HttpPacketHandler(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>> tcpQueue) : tcpPacketsQueue(tcpQueue), startTime(0), stopTime(0) {
 
 	pthread_mutex_init(&timeAccess,0);
 	pthread_create(&handlerThread, NULL, &HttpPacketHandler::handleTcpPacketsHelper, this);
@@ -38,43 +38,27 @@ void* HttpPacketHandler::handleTcpPackets()
 
 	while(1)
 	{
-		nfq_data* tcpPacket = tcpPacketsQueue->get();
+		std::shared_ptr<Packet> tcpPacket = tcpPacketsQueue->get();
 
 		pthread_mutex_lock(&timeAccess);
-		time_t packetTime = getPacketTime(tcpPacket);
-		struct nfqnl_msg_packet_hdr *ph;
-		ph = nfq_get_msg_packet_hdr(tcpPacket);
-		uint32_t id = ntohl(ph->packet_id);
+		time_t packetTime = tcpPacket->timestamp;
+		uint32_t id = ntohl(tcpPacket->nfq_header.packet_id);
 		cout << "handling " << "id: " << id << " time: " << packetTime << std::endl;
 
 		if(isInTime(packetTime))
 		{
-			ret = nfq_get_payload(tcpPacket, &data);
-			if(ret > 0)
-			{
-				std::cout << "caught!!!\n";
-				struct iphdr * ip_info = (struct iphdr *)data;
-				//struct tcphdr * tcp_info = (struct tcphdr*)(data + sizeof(*ip_info));
-				//tcpdata = (char *)((unsigned char *)tcp_info + (tcp_info->doff * 4));
+			request_data data;
+			data.method = HttpMethod::GET;
+			data.receiver_ip.s_addr = ntohl(tcpPacket->ip_header.daddr);
+			data.time = packetTime;
 
-				uint32_t destIp = ntohl(ip_info->daddr);
-				request_data data;
-				data.method = HttpMethod::GET;
-				data.receiver_ip.s_addr = destIp;
-				data.time = packetTime;
-
-				httpPackets.push_back(data);
+			httpPackets.push_back(data);
 
 
 				//std::regex txt_regex("^[a-zA-Z]+", std::regex_constants::basic);
 				//std::cout << "match : " << std::regex_match(tcpdata, txt_regex) << '\n';
 
 				//std::cout << "\n==============================\n";
-			}
-			else
-			{
-				std::cout << "ret: " << ret << std::endl;
-			}
 		}
 		else
 		{
@@ -83,6 +67,7 @@ void* HttpPacketHandler::handleTcpPackets()
 				dataReady.store(true);
 			}
 		}
+		// free memory
 		tcpPacket = 0;
 		pthread_mutex_unlock(&timeAccess);
 	}
