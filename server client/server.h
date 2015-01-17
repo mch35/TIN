@@ -11,6 +11,9 @@
 #include <iostream>
 #include <vector>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
 using namespace std; 
 
 const int MAX_CLIENTS = 50; 

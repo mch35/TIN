@@ -5,22 +5,30 @@
 int client_id_counter = 0;
 vector<client_data> clients; 
 
-int listenfd = 0; 
+int listenfd = 0, web_readfd, web_writefd;
+char fifo1_path[50] = "/tmp/fifo1"; 
+char fifo2_path[50] = "/tmp/fifo2";  
 struct sockaddr_in serv_addr;  
 
-pthread_mutex_t mutex; 
-pthread_t listener_thread; 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+pthread_t listener_thread, web_thread; 
 
-void list_clients() ; 
-void send_to_client(int, command); 
+void list_clients(); 
+int send_to_client(int, command); 
 bool init(); 
 void* listener(void*); 
+void* web_listener(void*); 
 void ui(); 
-void cleanup(); 
+void cleanup(int); 
 void safe_erase(int); 
 
 int main()
 { 
+	if ( signal(SIGINT, cleanup) == SIG_ERR ) {
+		perror("signal handling: "); 
+		return 1; 
+	}
+
 	if (!init()) return 1; 
 	
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
@@ -33,10 +41,14 @@ int main()
 		cout << "Error: " << strerror(err) << endl; 
 		return 1; 
 	}
+	if ( (err = pthread_create(&web_thread, NULL, &web_listener, (void *) NULL) ) != 0 ) {
+		cout << "Error: " << strerror(err) << endl; 
+		return 1; 
+	}
 	
 	ui(); 
 	
-	cleanup(); 
+	cleanup(0); 
 	
 	return 0;
 }
@@ -55,6 +67,92 @@ void* listener(void*) {
 		clients.push_back(cd); 
 
 		pthread_mutex_unlock(&mutex); 
+	}
+}
+
+void* web_listener(void*) {
+	if ( mkfifo(fifo1_path, S_IFIFO | 0666 ) == -1 ) {
+		return NULL; 
+	}
+	if ( mkfifo(fifo2_path, S_IFIFO | 0666 ) == -1 ) {
+		return NULL; 
+	}
+	
+	web_readfd = open(fifo1_path, O_RDONLY | O_NONBLOCK ); 
+	
+	if (web_readfd < 0) {
+		return NULL; 
+	}
+	
+	web_writefd = open(fifo2_path, O_WRONLY | O_NONBLOCK ); 
+	if (web_writefd < 0) {
+		return NULL; 
+	}
+	
+	const int MSG_LENGTH = 15; 
+	char buffer[1024];
+	while(1) {
+		if ( read(web_readfd, buffer, MSG_LENGTH) < 1 ) {
+			return NULL; 
+		}
+		
+		WebCommand c = (WebCommand)buffer[0]; 
+		int result, client_id; 
+		command com; 
+		
+		switch(c) {
+			case W_START:
+			case W_STOP:  
+				char t[11]; 
+				strncpy(t, buffer+2, 2); 
+				t[3] = '\0';
+				client_id = atoi(t); 
+				strncpy(t, buffer+5, 10); 
+				t[10] = '\0'; 
+				com.type = (CommandType)c; 
+				com.time = (time_t)atoi(t); 
+				result = send_to_client(client_id, com); 
+				memset(t, '\0', 10); 
+				t[0] = (char)result;
+				write(web_writefd, t, 1);  
+				break; 
+				
+			case W_GET_DATA:
+				char tt[4]; 
+				strncpy(tt, buffer+2, 2); 
+				tt[3] = '\0';
+				client_id = atoi(tt); 
+				com.type = (CommandType)c; 
+				result = send_to_client(client_id, com); 
+				memset(tt, '\0', 10); 
+				tt[0] = (char)result;
+				write(web_writefd, tt, 1); 
+				break; 
+				
+			case W_LIST_CLIENTS:
+				pthread_mutex_lock(&mutex); 
+				int size = clients.size(); 
+				char ttt[20]; 
+				memset(ttt, '\0', 20); 
+				ttt[0] = (char)(size/10 + 48); 
+				ttt[1] = (char)(size%10 + 48); 
+				write(web_writefd, ttt, 2); 
+				
+				struct sockaddr_in sa;
+				unsigned int sa_size = sizeof(sa);
+				for (vector<client_data>::iterator it = clients.begin(); it != clients.end(); ++it) {
+					memset(ttt, '\0', 20); 
+					ttt[0] = (char)(it->id/10 + 48); 
+					ttt[1] = (char)(it->id%10 + 48); 
+					ttt[2] = ' '; 
+					getsockname( it->sockfd, (struct sockaddr*)&sa, &sa_size ); 					
+					strcpy(ttt+3, inet_ntoa(sa.sin_addr)); 
+					write(web_writefd, ttt, 20); 
+				}
+				pthread_mutex_unlock(&mutex); 
+				break; 
+		}
+		
 	}
 }
 
@@ -127,7 +225,7 @@ void list_clients() {
 	}
 }
 
-void send_to_client(int client_id, command c) {
+int send_to_client(int client_id, command c) {
 	pthread_mutex_lock(&mutex); 
 	
 	vector<client_data>::iterator it; 
@@ -138,8 +236,7 @@ void send_to_client(int client_id, command c) {
 	}
    
    if (it == clients.end()) {
-   	cout << "No such client" << endl; 
-   	return; 
+   	return 1; 
    }
    
    client_data cd = *it; 
@@ -148,54 +245,45 @@ void send_to_client(int client_id, command c) {
    
   	unsigned char* com = serialize_command(c); 
    int num; 
-  	cout << "Sending command to " << it->id << endl;
 	if ( (num = send(cd.sockfd, com, COMMAND_LENGTH, 0)) == -1 ) {
-		cout << "Failure sending message to " << it->id << endl; 
-		cout << "num: " << num << ", errno: " << errno << endl; 
 		safe_erase(cd.id); 
-		return; 
+		return 1; 
 	}
 
 	unsigned char buff[1]; 
 	if ((num = recv(cd.sockfd, buff, 1, 0)) == -1) {
-		cout << "Error while receiving response from " << cd.id << endl; 
 		safe_erase(cd.id); 
-		return; 
+		return 1; 
 	} else if (num == 0) {
-		cout << "Connection to " << cd.id << " is closed" << endl;        
 		safe_erase(cd.id); 
-		return; 
+		return 1; 
 	}
 	
 	ClientResponse response = (ClientResponse)buff[0]; 
 	switch (response) {
 		case OK:
-			cout << "Response from " << cd.id << ": command accepted" << endl; 
+			return 0; 
 		break; 
 		
 		case ERROR: 
-			cout << "Response from " << cd.id << ": error" << endl; 
-			return;
+			return 1; 
 	}
 	 
 	if (c.type == GET_DATA) {
 		unsigned char num_buff[INT_LENGTH], rec_buff[R_D_LENGTH];
 		if ((num = recv(cd.sockfd, num_buff, INT_LENGTH, 0)) != INT_LENGTH) {
-			cout << "Error #6" << endl; 
 			safe_erase(cd.id); 
-			return; 
+			return 1; 
 		}
 		
 		int record_num = deserialize_int(num_buff);
 		request_data rd; 
 		while (record_num--) {
 			if ((num = recv(cd.sockfd, rec_buff, R_D_LENGTH, 0)) != R_D_LENGTH) {
-				cout << "Error #7" << endl; 
 				safe_erase(cd.id); 
-				return; 
+				return 1; 
 			}	
 			rd = deserialize_request(rec_buff); 
-			cout << "ip: " << inet_ntoa(rd.receiver_ip) << ", method: " << rd.method << ", time: " << ctime(&(rd.time))
 		}
 	}
 		
@@ -221,14 +309,18 @@ void safe_erase(int client_id) {
    pthread_mutex_unlock(&mutex);
 }
 
-void cleanup() {
+void cleanup(int dummy=0) {
 	pthread_mutex_destroy(&mutex); 
 	pthread_cancel(listener_thread); 
+	pthread_cancel(web_thread); 
 	for (vector<client_data>::iterator it = clients.begin(); it != clients.end(); ++it) {
 		close(it->sockfd); 
 	}
 	close(listenfd); 
-	// TODO
+	close(web_readfd); 
+	close(web_writefd); 
+	unlink(fifo1_path); 
+	unlink(fifo2_path); 
 }
 
 

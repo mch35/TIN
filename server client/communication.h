@@ -30,6 +30,13 @@ enum HttpMethod : unsigned char {
 	PATCH = 9 
 };
 
+enum WebCommand : unsigned char {
+	W_START = 1, 
+	W_STOP = 2, 
+	W_GET_DATA = 3, 
+	W_LIST_CLIENTS = 4
+};
+
 // Command to be sent by server. 
 struct command {
 	CommandType type;
