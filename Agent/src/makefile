@@ -6,8 +6,8 @@ CC=g++
 
 all: Agent
 	
-Agent: Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp serialization.cpp
-	$(CC) $(PARAMS) Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp serialization.cpp -o Agent $(LIBS)
+Agent: Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp ../../Utils/src/serialization.cpp
+	$(CC) $(PARAMS) Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp ../../Utils/src/serialization.cpp -o Agent $(LIBS)
 
 NetfilterWrapper.o: NetfilterWrapper.cpp 
 	$(CC) $(PARAMS) NetfilterWrapper.cpp -o NetfilterWrapper.o $(LIBS)
@@ -18,7 +18,7 @@ Connector.o: Connector.cpp serialization.cpp
 HttpPacketHandler.o: HttpPacketHandler.cpp
 	$(CC) $(PARAMS) HttpPacketHandler.cpp -o HttpPacketHandler.o $(LIBS)
 	
-serialization.o: serialization.cpp
+serialization.o: ../../Utils/src/serialization.cpp
 	$(CC) $(PARAMS) serialization.cpp -o serialization.o
 
 clean:

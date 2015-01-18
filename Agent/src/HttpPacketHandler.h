@@ -16,7 +16,7 @@
 
 #include "AgentTypes.h"
 #include "BlockingQueue.h"
-#include "communication.h"
+#include "../../Utils/src/communication.h"
 
 /**
  * Filtruje pakiety HTTP na podstawie aktualnie ustawionych granic czasowych.

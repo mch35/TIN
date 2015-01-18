@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <memory>
 #include "HttpPacketHandler.h"
+#include "../../Utils/src/communication.h"
 
 /**
  * Pozwala na komunikację z serwerem.

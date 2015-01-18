@@ -1,3 +1,6 @@
+#ifndef SRC_AGENT_COMMUNICATION_H_
+#define SRC_AGENT_COMMUNICATION_H_
+
 #include <time.h>
 #include <string>
 #include <arpa/inet.h>
@@ -64,3 +67,4 @@ request_data deserialize_request(unsigned char*);
 unsigned char* serialize_int(unsigned int); 
 unsigned int deserialize_int(unsigned char*); 
 
+#endif
