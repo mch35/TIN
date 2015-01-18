@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <mysql.h>
 using namespace std; 
 
 const int MAX_CLIENTS = 50; 

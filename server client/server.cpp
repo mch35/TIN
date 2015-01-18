@@ -21,6 +21,7 @@ void* web_listener(void*);
 void ui(); 
 void cleanup(int); 
 void safe_erase(int); 
+string get_method_name(HttpMethod); 
 
 int main()
 { 
@@ -156,24 +157,32 @@ void* web_listener(void*) {
 	}
 }
 
-time_t convert_time(string s) { return time(NULL); }
+time_t convert_time(string s) { 
+	struct tm tm; 
+	strptime(s.c_str(), "%Y-%m-%d %H:%M:%S", &tm); 
+	cout << mktime(&tm) << endl; 
+	cout << time(NULL) << endl; 
+	return mktime(&tm); 
+}
 void ui() {
-	string type, time; 
+	string type, time, date; 
 	int client_id;
 	command c; 
 	while(1) {
 		cout << "% "; 
-		type = "", time = "", client_id = 0; 
+		type = "", time = "", date = "", client_id = 0; 
 		cin >> type; 
 		
 		if (type == "start") {
 			c.type = START; 
-			cin >> client_id >> time; 
-			c.time = convert_time(time); // TODO 
+			cin >> client_id >> date >> time; 
+			time = date + " " + time; 
+			c.time = convert_time(time); 
 		} else if (type == "stop") {
 			c.type = STOP; 
-			cin >> client_id >> time; 
-			c.time = convert_time(time); // TODO 
+			cin >> client_id >> date >> time; 
+			time = date + " " + time; 
+			c.time = convert_time(time); 
 		} else if (type == "get_data") {
 			cin >> client_id; 
 			c.type = GET_DATA; 
@@ -262,8 +271,9 @@ int send_to_client(int client_id, command c) {
 	ClientResponse response = (ClientResponse)buff[0]; 
 	switch (response) {
 		case OK:
-			return 0; 
-		break; 
+			if (c.type != GET_DATA) 
+				return 0; 
+			break; 
 		
 		case ERROR: 
 			return 1; 
@@ -276,6 +286,32 @@ int send_to_client(int client_id, command c) {
 			return 1; 
 		}
 		
+		// otwieramy połączenie do zapisu do bazy 
+		MYSQL *con = mysql_init(NULL);
+		int session_id = -1; 
+		struct sockaddr_in sa;
+		unsigned int sa_size = sizeof(sa); 
+		getsockname( cd.sockfd, (struct sockaddr*)&sa, &sa_size );		
+		if (con != NULL) {
+			if (mysql_real_connect(con, "localhost", "root", "", "tin", 0, NULL, 0) == NULL) {
+				mysql_close(con); 
+			}
+			else {
+				string q = "insert into sessions values(NULL, "; 
+				q += to_string(cd.id); 
+				q += ", '"; 
+				q += (string)inet_ntoa(sa.sin_addr); 
+				q += "')"; 
+				cerr << q << endl; 
+				if  (mysql_query(con, q.c_str()) ) {
+					cerr << "error 1" << endl; 
+					mysql_close(con); 
+				} else {
+					session_id = mysql_insert_id(con); 
+				}
+			}
+		}	
+		
 		int record_num = deserialize_int(num_buff);
 		request_data rd; 
 		while (record_num--) {
@@ -284,6 +320,28 @@ int send_to_client(int client_id, command c) {
 				return 1; 
 			}	
 			rd = deserialize_request(rec_buff); 
+			
+			if (session_id > 0) {
+				char b[20]; 
+				memset(b, '\0', 20); 
+				strftime( b, 20, "%Y-%m-%d %H:%M:%S", localtime(&(rd.time)) ); 
+			
+				string qq = "insert into requests values(NULL, '"; 
+				qq += (string)inet_ntoa(rd.receiver_ip); 
+				qq += "', '"; 
+				qq += get_method_name(rd.method); 
+				qq += "', '";
+				qq += b; 
+				qq += "', ";
+				qq += to_string(session_id); 
+				qq += ")"; 
+				cout << qq << endl; 
+				if ( mysql_query(con, qq.c_str()) ) { 
+					cerr << "error rp" << endl; 
+					mysql_close(con); 
+					session_id = -1; 
+				}
+			}
 		}
 	}
 		
@@ -323,6 +381,28 @@ void cleanup(int dummy=0) {
 	unlink(fifo2_path); 
 }
 
+string get_method_name(HttpMethod m) {
+	switch(m) {
+		case GET:
+			return "GET"; 
+		case POST:
+			return "POST"; 
+		case PUT:
+			return "PUT";
+		case HEAD:
+			return "HEAD"; 
+		case DELETE:
+			return "DELETE"; 
+		case TRACE:
+			return "TRACE"; 
+		case OPTIONS:
+			return "OPTIONS"; 
+		case CONNECT:
+			return "CONNECT"; 
+		case PATCH:
+			return "PATCH"; 
+	}
+}
 
 
 
