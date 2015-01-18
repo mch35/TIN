@@ -7,14 +7,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include "communication.h"
+#include "../../Utils/src/communication.h"
 #include <iostream>
 #include <vector>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <mysql.h>
+#include <mysql/mysql.h>
 using namespace std; 
 
 const int MAX_CLIENTS = 50; 
