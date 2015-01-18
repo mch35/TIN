@@ -26,24 +26,24 @@ string get_method_name(HttpMethod);
 int main()
 { 
 	if ( signal(SIGINT, cleanup) == SIG_ERR ) {
-		perror("signal handling: "); 
+		perror("signal handling"); 
 		return 1; 
 	}
 
 	if (!init()) return 1; 
 	
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
-		cout << "ERROR #5" << endl; 
+		perror("mutex init"); 
 		return 1; 
 	}
 	
 	int err; 
 	if ( (err = pthread_create(&listener_thread, NULL, &listener, (void *) NULL) ) != 0 ) {
-		cout << "Error: " << strerror(err) << endl; 
+		perror("create listener thread"); 
 		return 1; 
 	}
 	if ( (err = pthread_create(&web_thread, NULL, &web_listener, (void *) NULL) ) != 0 ) {
-		cout << "Error: " << strerror(err) << endl; 
+		perror("create web listener thread"); 
 		return 1; 
 	}
 	
@@ -58,6 +58,10 @@ void* listener(void*) {
 	int sockfd; 
 	while(1) {
 		sockfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
+		if (sockfd < 0) {
+			perror("client accept"); 
+			continue; 
+		}
 		
 		client_data cd; 
 		
@@ -73,20 +77,24 @@ void* listener(void*) {
 
 void* web_listener(void*) {
 	if ( mkfifo(fifo1_path, S_IFIFO | 0666 ) == -1 ) {
+		perror("mkfifo 1"); 
 		return NULL; 
 	}
 	if ( mkfifo(fifo2_path, S_IFIFO | 0666 ) == -1 ) {
+		perror("mkfifo 2"); 
 		return NULL; 
 	}
 	
 	web_readfd = open(fifo1_path, O_RDONLY | O_NONBLOCK ); 
 	
 	if (web_readfd < 0) {
+		perror("open fifo1"); 
 		return NULL; 
 	}
 	
 	web_writefd = open(fifo2_path, O_WRONLY | O_NONBLOCK ); 
 	if (web_writefd < 0) {
+		perror("open fifo2"); 
 		return NULL; 
 	}
 	
@@ -94,6 +102,7 @@ void* web_listener(void*) {
 	char buffer[1024];
 	while(1) {
 		if ( read(web_readfd, buffer, MSG_LENGTH) < 1 ) {
+			perror("web client read"); 
 			return NULL; 
 		}
 		
@@ -212,7 +221,7 @@ bool init() {
 	bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
   
 	if(listen(listenfd, 10) == -1){
-      cout << "Failed to listen" << endl; 
+     	perror("listen"); 
       return false; 
 	}
 	
