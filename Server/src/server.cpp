@@ -348,8 +348,8 @@ int send_to_client(int client_id, command c) {
 				safe_erase(cd.id); 
 				return 2; 
 			}	
-			rd = deserialize_request(rec_buff); 
-			
+			rd = deserialize_request(rec_buff);
+
 			if (session_id > 0) {
 				char b[20]; 
 				memset(b, '\0', 20); 
@@ -433,6 +433,8 @@ string get_method_name(HttpMethod m) {
 			return "CONNECT"; 
 		case PATCH:
 			return "PATCH"; 
+		case RESPONSE:
+			return "RESPONSE";
 	}
 }
 

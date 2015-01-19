@@ -42,7 +42,7 @@ void* HttpPacketHandler::handleTcpPackets() {
 
 		pthread_mutex_lock(&timeAccess);
 		time_t packetTime = tcpPacket->timestamp;
-
+		
 		if (isInTime(packetTime)) {
 			try {
 				request_data data;
@@ -50,8 +50,12 @@ void* HttpPacketHandler::handleTcpPackets() {
 
 				if (matched = tryMatch(tcpPacket, responseRegex, m))
 				{
-					int responseCode = atoi(m.str(1).c_str());
-					data.method = HttpMethod::DELETE; // TODO
+					data.method = HttpMethod::RESPONSE;
+					for(int i = 0; i < 3; ++i)
+					{
+						data.response[i] = m.str(1)[i];
+					}
+					data.response[3] = '\0';
 				}
 				else if (matched = tryMatch(tcpPacket, requestRegex, m)) {
 					data.method = enumParser.parse(m.str(0));

@@ -50,7 +50,7 @@ unsigned char* serialize_request(request_data req) {
 	for (int i = 0; i < 4; ++i) c[i+5] = c2[i]; 
 	delete c2;
 	
-	for (int i = 0; i < 3; ++i) c[i+9] = req.response[i]; 
+	for (int i = 0; i < 4; ++i) c[i+9] = req.response[i];
 	
 	return c; 
 }
@@ -60,7 +60,7 @@ request_data deserialize_request(unsigned char* c) {
 	req.time = static_cast<unsigned int> (deserialize_int(c)); 
 	req.method = (HttpMethod)c[4]; 
 	req.receiver_ip.s_addr = deserialize_int(c+5); 
-	for (int i = 0; i < 3; ++i) req.response[i] = c[9+i]; 
+	for (int i = 0; i < 4; ++i) req.response[i] = c[9+i];
 	return req; 
 }
 

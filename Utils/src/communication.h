@@ -30,7 +30,8 @@ enum HttpMethod : unsigned char {
 	TRACE = 6, 
 	OPTIONS = 7, 
 	CONNECT = 8, 
-	PATCH = 9 
+	PATCH = 9,
+	RESPONSE = 10
 };
 
 enum WebCommand : unsigned char {
@@ -50,14 +51,14 @@ struct command {
 // length of serialized command structure
 const int COMMAND_LENGTH = 5; 
 const int INT_LENGTH = 4; 
-const int R_D_LENGTH = 12; 
+const int R_D_LENGTH = 13;
 
 // Single HTTP request data - sent by client to server
 struct request_data {
 	time_t time;  	
 	HttpMethod method; 
 	in_addr receiver_ip;  
-	char response[3];
+	char response[4];
 };
 
 unsigned char* serialize_command(command); 
