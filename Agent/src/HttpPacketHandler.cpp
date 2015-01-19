@@ -48,7 +48,7 @@ void* HttpPacketHandler::handleTcpPackets() {
 				request_data data;
 				bool matched = false;
 
-				if (matched = tryMatch(tcpPacket, responseRegex, m))
+				if ((matched = tryMatch(tcpPacket, responseRegex, m)) == true)
 				{
 					data.method = HttpMethod::RESPONSE;
 					for(int i = 0; i < 3; ++i)
@@ -57,9 +57,8 @@ void* HttpPacketHandler::handleTcpPackets() {
 					}
 					data.response[3] = '\0';
 				}
-				else if (matched = tryMatch(tcpPacket, requestRegex, m)) {
+				else if ((matched = tryMatch(tcpPacket, requestRegex, m)) == true) {
 					data.method = enumParser.parse(m.str(0));
-
 				}
 
 				if(matched)
