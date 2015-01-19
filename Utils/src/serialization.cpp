@@ -38,7 +38,7 @@ command deserialize_command(unsigned char* c) {
 }
  
 unsigned char* serialize_request(request_data req) {
-	unsigned char* c = new unsigned char [9]; 
+	unsigned char* c = new unsigned char [R_D_LENGTH]; 
 	
 	unsigned char* c2 = serialize_int(static_cast<unsigned int> (req.time));
 	for (int i = 0; i < 4; ++i) c[i] = c2[i]; 
@@ -50,6 +50,8 @@ unsigned char* serialize_request(request_data req) {
 	for (int i = 0; i < 4; ++i) c[i+5] = c2[i]; 
 	delete c2;
 	
+	for (int i = 0; i < 4; ++i) c[i+9] = req.response[i];
+	
 	return c; 
 }
  
@@ -58,6 +60,7 @@ request_data deserialize_request(unsigned char* c) {
 	req.time = static_cast<unsigned int> (deserialize_int(c)); 
 	req.method = (HttpMethod)c[4]; 
 	req.receiver_ip.s_addr = deserialize_int(c+5); 
+	for (int i = 0; i < 4; ++i) req.response[i] = c[9+i];
 	return req; 
 }
 

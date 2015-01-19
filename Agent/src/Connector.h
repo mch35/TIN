@@ -14,6 +14,7 @@
 #include <memory>
 #include "HttpPacketHandler.h"
 #include "../../Utils/src/communication.h"
+#include <ctime>
 
 /**
  * Pozwala na komunikację z serwerem.

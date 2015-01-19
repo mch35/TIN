@@ -27,29 +27,48 @@ HttpPacketHandler::~HttpPacketHandler() {
 	pthread_mutex_destroy(&timeAccess);
 }
 
+bool HttpPacketHandler::tryMatch(const shared_ptr<Packet>& tcpPacket,
+		const regex& txt_regex, cmatch& m) {
+	return regex_search((char*) (tcpPacket->data), m, txt_regex);
+}
+
 void* HttpPacketHandler::handleTcpPackets() {
 	EnumParser<HttpMethod> enumParser;
-	regex txt_regex("^([a-zA-Z]+)");
+	regex requestRegex("^([a-zA-Z]+)");
+	regex responseRegex("^HTTP/[0-9].[0-9] ([0-9]+) ");
 	cmatch m;
 	while (running.load()) {
 		shared_ptr<Packet> tcpPacket = tcpPacketsQueue->get();
 
 		pthread_mutex_lock(&timeAccess);
 		time_t packetTime = tcpPacket->timestamp;
-
+		
 		if (isInTime(packetTime)) {
-			if (regex_search((char*) tcpPacket->data, m, txt_regex)) {
-				try {
+			try {
+				request_data data;
+				bool matched = false;
 
-					request_data data;
+				if ((matched = tryMatch(tcpPacket, responseRegex, m)) == true)
+				{
+					data.method = HttpMethod::RESPONSE;
+					for(int i = 0; i < 3; ++i)
+					{
+						data.response[i] = m.str(1)[i];
+					}
+					data.response[3] = '\0';
+				}
+				else if ((matched = tryMatch(tcpPacket, requestRegex, m)) == true) {
 					data.method = enumParser.parse(m.str(0));
+				}
+
+				if(matched)
+				{
 					data.receiver_ip.s_addr = ntohl(tcpPacket->ip_header.daddr);
 					data.time = packetTime;
-
 					httpPackets.push_back(data);
-				} catch (const std::runtime_error& e) {
-					clog << "Not a HTTP packet!" << std::endl;
 				}
+			} catch (const std::runtime_error& e) {
+				clog << "Not a HTTP packet! " << e.what() << std::endl;
 			}
 		} else {
 			if (!dataReady.load() && packetTime < stopTime) {
@@ -109,9 +128,13 @@ void HttpPacketHandler::setTimeBounds(time_t startTime, time_t stopTime) {
 	this->httpPackets.clear();
 	this->dataReady.store(false);
 
+	tm tm = *localtime(&(this->startTime));
+
 	clog << "> Starting new filtering.\n"
-		 << "> Start: " << ctime(&(this->startTime))
-		 << "> Stop: " << ctime(&(this->stopTime)) << endl;
+		 << "> Start: " << asctime(&tm);
+
+	tm = *localtime(&(this->stopTime));
+	clog << "> Stop: " << asctime(&tm) << endl;
 	pthread_mutex_unlock(&timeAccess);
 }
 

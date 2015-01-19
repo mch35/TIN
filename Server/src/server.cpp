@@ -169,7 +169,9 @@ void* web_listener(void*) {
 }
 
 time_t convert_time(string s) { 
-	struct tm tm; 
+	struct tm tm;
+	time_t now = time(0);
+	tm = *gmtime(&now);
 	strptime(s.c_str(), "%Y-%m-%d %H:%M:%S", &tm); 
 	time_t t = mktime(&tm); 
 	return mktime(&tm); 
@@ -206,7 +208,24 @@ void ui() {
 			continue; 
 		}
 		
-		send_to_client(client_id, c); 
+		int res = send_to_client(client_id, c); 
+		switch (res) {
+			case 0: 
+				cout << "Client response: OK" << endl; 
+				break; 
+				
+			case 1: 
+				cout << "No such client. Try again." << endl; 
+				break; 
+				
+			case 2: 
+				cout << "Error communicating with client." << endl; 
+				break; 
+				
+			case 3: 
+				cout << "Client response: ERROR" << endl; 
+				break; 
+		}
 	}
 }
 
@@ -266,16 +285,16 @@ int send_to_client(int client_id, command c) {
    int num; 
 	if ( (num = send(cd.sockfd, com, COMMAND_LENGTH, 0)) == -1 ) {
 		safe_erase(cd.id); 
-		return 1; 
+		return 2; 
 	}
 
 	unsigned char buff[1]; 
 	if ((num = recv(cd.sockfd, buff, 1, 0)) == -1) {
 		safe_erase(cd.id); 
-		return 1; 
+		return 2; 
 	} else if (num == 0) {
 		safe_erase(cd.id); 
-		return 1; 
+		return 2; 
 	}
 	
 	ClientResponse response = (ClientResponse)buff[0]; 
@@ -286,14 +305,14 @@ int send_to_client(int client_id, command c) {
 			break; 
 		
 		case ERROR: 
-			return 1; 
+			return 3; 
 	}
 	 
 	if (c.type == GET_DATA) {
 		unsigned char num_buff[INT_LENGTH], rec_buff[R_D_LENGTH];
 		if ((num = recv(cd.sockfd, num_buff, INT_LENGTH, 0)) != INT_LENGTH) {
 			safe_erase(cd.id); 
-			return 1; 
+			return 2; 
 		}
 		
 		// otwieramy połączenie do zapisu do bazy 
@@ -327,10 +346,10 @@ int send_to_client(int client_id, command c) {
 		while (record_num--) {
 			if ((num = recv(cd.sockfd, rec_buff, R_D_LENGTH, 0)) != R_D_LENGTH) {
 				safe_erase(cd.id); 
-				return 1; 
+				return 2; 
 			}	
-			rd = deserialize_request(rec_buff); 
-			
+			rd = deserialize_request(rec_buff);
+
 			if (session_id > 0) {
 				char b[20]; 
 				memset(b, '\0', 20); 
@@ -344,7 +363,9 @@ int send_to_client(int client_id, command c) {
 				qq += b; 
 				qq += "', ";
 				qq += to_string(session_id); 
-				qq += ")"; 
+				qq += ", '";
+				qq += rd.response;
+				qq += "')"; 
 				cout << qq << endl; 
 				if ( mysql_query(con, qq.c_str()) ) { 
 					cerr << "error rp" << endl; 
@@ -354,7 +375,8 @@ int send_to_client(int client_id, command c) {
 			}
 		}
 	}
-		
+	
+	return 0; 
 }
 
 void safe_erase(int client_id) {
@@ -411,6 +433,8 @@ string get_method_name(HttpMethod m) {
 			return "CONNECT"; 
 		case PATCH:
 			return "PATCH"; 
+		case RESPONSE:
+			return "RESPONSE";
 	}
 }
 

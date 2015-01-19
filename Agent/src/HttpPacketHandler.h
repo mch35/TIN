@@ -13,6 +13,7 @@
 #include <atomic>
 #include <memory>
 #include <ctime>
+#include <regex>
 
 #include "AgentTypes.h"
 #include "BlockingQueue.h"
@@ -43,6 +44,8 @@ class HttpPacketHandler {
 		void* handleTcpPackets();
 		static void* handleTcpPacketsHelper(void*);
 		bool isInTime(time_t tcpPacket);
+	bool tryMatch(const shared_ptr<Packet>& tcpPacket, const regex& txt_regex, cmatch& m);
+
 	public:
 		HttpPacketHandler(std::shared_ptr<BlockingQueue<std::shared_ptr<Packet>>>tcpQueue);
 		virtual ~HttpPacketHandler();
