@@ -36,6 +36,7 @@ CREATE TABLE `requests` (
   `http_method` varchar(15) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `session_id` int(11) NOT NULL,
+  `response` varchar(3) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `req_sess_fk` (`session_id`),
   CONSTRAINT `req_sess_fk` FOREIGN KEY (`session_id`) REFERENCES `sessions` (`id`)
