@@ -78,24 +78,27 @@ void* listener(void*) {
 void* web_listener(void*) {
 	if ( mkfifo(fifo1_path, S_IFIFO | 0666 ) == -1 ) {
 		perror("mkfifo 1"); 
-		return NULL; 
+		cleanup(0); 
+		exit(1); 
 	}
 	if ( mkfifo(fifo2_path, S_IFIFO | 0666 ) == -1 ) {
 		perror("mkfifo 2"); 
-		return NULL; 
+		cleanup(0); 
+		exit(1); 
 	}
 	
-	web_readfd = open(fifo1_path, O_RDONLY | O_NONBLOCK ); 
-	
+	web_readfd = open(fifo1_path, O_RDWR ); 
 	if (web_readfd < 0) {
 		perror("open fifo1"); 
-		return NULL; 
+		cleanup(0); 
+		exit(1); 
 	}
 	
-	web_writefd = open(fifo2_path, O_WRONLY | O_NONBLOCK ); 
+	web_writefd = open(fifo2_path, O_RDWR ); 
 	if (web_writefd < 0) {
 		perror("open fifo2"); 
-		return NULL; 
+		cleanup(0); 
+		exit(1); 
 	}
 	
 	const int MSG_LENGTH = 15; 
@@ -103,10 +106,11 @@ void* web_listener(void*) {
 	while(1) {
 		if ( read(web_readfd, buffer, MSG_LENGTH) < 1 ) {
 			perror("web client read"); 
-			return NULL; 
+			cleanup(0); 
+			exit(1); 
 		}
 		
-		WebCommand c = (WebCommand)buffer[0]; 
+		WebCommand c = (WebCommand)(buffer[0]-48); 
 		int result, client_id; 
 		command com; 
 		
@@ -122,9 +126,8 @@ void* web_listener(void*) {
 				com.type = (CommandType)c; 
 				com.time = (time_t)atoi(t); 
 				result = send_to_client(client_id, com); 
-				memset(t, '\0', 10); 
-				t[0] = (char)result;
-				write(web_writefd, t, 1);  
+				strcpy(t, to_string((int)result).c_str()); 
+				write(web_writefd, (void*)t, 1); 
 				break; 
 				
 			case W_GET_DATA:
@@ -134,9 +137,8 @@ void* web_listener(void*) {
 				client_id = atoi(tt); 
 				com.type = (CommandType)c; 
 				result = send_to_client(client_id, com); 
-				memset(tt, '\0', 10); 
-				tt[0] = (char)result;
-				write(web_writefd, tt, 1); 
+				strcpy(tt, to_string((int)result).c_str()); 
+				write(web_writefd, (void*)tt, 1); 
 				break; 
 				
 			case W_LIST_CLIENTS:
@@ -169,8 +171,7 @@ void* web_listener(void*) {
 time_t convert_time(string s) { 
 	struct tm tm; 
 	strptime(s.c_str(), "%Y-%m-%d %H:%M:%S", &tm); 
-	cout << mktime(&tm) << endl; 
-	cout << time(NULL) << endl; 
+	time_t t = mktime(&tm); 
 	return mktime(&tm); 
 }
 void ui() {
