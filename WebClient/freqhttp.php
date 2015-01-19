@@ -114,7 +114,7 @@
 		
 		#container {
 			position: relative;
-			width: 1000px; /* width + border for IE 5.x */
+			width: 1000px; 
 			border: solid #036;
 			border-width: 12 3px;
 			margin: auto;
@@ -187,6 +187,10 @@
 			<form>
 				<label for="agent_id">Id agenta</label>
 				<input type="text" name="agent_id" />
+				<label for="time_to_measure">Czas do pomiaru</label>
+				<input type="text" name="time_to_measure" />
+				</br>
+				</br>
 				<input type="submit" class="button" name="start" value="Start pomiaru" />
 				<input type="submit" class="button" name="stop" value="Stop pomiaru" />
 				<input type="submit" class="button" name="get_data" value="Pobierz dane" />
@@ -213,16 +217,16 @@
 			date_default_timezone_set("Europe/Warsaw"); 
 			
 			if($_GET){
-			    if(isset($_GET['start']) && !empty($_GET['agent_id']) ){
+			    if(isset($_GET['start']) && !empty($_GET['agent_id']) && !empty($_GET['time_to_measure']) ){
 			    
-				send_start($_GET['agent_id'],new DateTime());
+				send_start($_GET['agent_id'],$_GET['time_to_measure']);
 				$response = recv_response(1); 
 				if ($response == "1") echo "Odpowiedź: OK\n"; 
 				else echo "Odpowiedź: ERROR\n"; 
 				
-			    }elseif(isset($_GET['stop']) && !empty($_GET['agent_id'])){
+			    }elseif(isset($_GET['stop']) && !empty($_GET['agent_id']) && !empty($_GET['time_to_measure']) ){
 			    
-				send_stop($_GET['agent_id'], new DateTime());
+				send_stop($_GET['agent_id'], $_GET['time_to_measure']);
 				$response = recv_response(1); 
 				if ($response == "1") echo "Odpowiedź: OK\n"; 
 				else echo "Odpowiedź: ERROR\n"; 
@@ -254,10 +258,9 @@
 		
 		<div id="users_table" align="center">
 		
-		<h3>Lista agentów:</h3>
+		<h3>Lista sesji:</h3>
 
 		<?php
-			//  echo "connecting to database\n"; 
 		  
 			$conn = new mysqli("localhost", "root", ""); 
 			if ($conn->connect_error) {
@@ -271,7 +274,7 @@
 			      echo "<tr>";
 				  echo " <td><b>ID sesji</td>";
 				  echo " <td><b>ID klienta</b></td>";
-				  echo " <td><b>Nr IP</b></td>";
+				  echo " <td><b>IP</b></td>";
 			      echo "</tr>";
 			      
 			  
@@ -285,7 +288,6 @@
 					  echo "<td>".$row['id'] ."</td>";
 					  echo "<td>".$row['client_id'] ."</td>";
 					  echo "<td>".$row['client_ip'] ."</td>";
-					 // ", client_id: " . $row['client_id'] . ", client_ip: " . $row['client_ip'] . "\n";
 				  }
 			      } else {
 				  echo "Brak danych"; 
@@ -388,87 +390,55 @@
 		<h3>Częstotliwość zapytań HTTP dla danej sesji:</h3>
 		
 		<?php
- 
-			  
-			echo "<table>";
-			  
-			      echo "<tr>";
-				  echo " <td><b>Request HTTP Method</b></td>";
-				  echo " <td><b>Ilość zapytań na minutę</b></td>";
-			      echo "</tr>";
 			      
-			      //echo "lalala";
-			      
-			      $sql_all = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
-			      $result_all = $conn->query($sql_all);
-			      if ($result_all == false) echo "Błąd zapytania sql"; 
-			      else if ($result_all->num_rows > 0) {
-					//echo "lalala2";
-					$sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'order by time"; 
-					$result = $conn->query($sql); 
-					$array = array();
-					if ($result == false) echo "Błąd zapytania sql"; 
-					else if ($result->num_rows > 0) {
-					      while ($row = $result->fetch_assoc()) {
-						  array_push($array, $row['time']);
-					      }
-					      $n = count($array);
-					      $first_time = $array[0];
-					     // echo $first_time;
-					      
-					      $last_time = $array[$n - 1];
-					     //  echo $last_time;
-					      
-					      $difference = abs($last_time - $first_time);
-					      $minutes   = round($difference / 60);
-					      //echo $minutes;
-					      
-					      
-					      /*while ($row = $result_all->fetch_assoc()) {
-							  echo "<tr>";
-							  echo "<td>".$row['http_method'] ."</td>";
-							//  $number = intval($row['req_number']);
-							 // echo $number;
-							 // echo "<td>".($row['req_number']/$minutes) ."</td>";
-					
-						    }
-					      } else {
-						    echo "Brak danych"; 
-					      }*/
-					      
-					     // echo $difference;
-					      
-					      
-					//  $first_time = $result[0].$row['session'];
-                                          //echo "lala";
-					//  echo $first_time;
-					//  $last_time = $result[num_rows].$row['time'];
-					/*  
-					  $difference = intval($last_time - $first_time);
-					  echo $difference;
-					    while ($row = $result->fetch_assoc()) {
-						    echo "<tr>";
-						    echo "<td>".$row['http_method'] ."</td>";
-						//    echo "<td>".intval($row['req_number']) / $difference."</td>";
-						  
-					    }*/
-					} else {
-					    echo "Brak danych"; 
+			        $sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'order by time"; 
+			        $result = $conn->query($sql); 
+			        $array = array();
+			        if ($result == false) echo "Błąd zapytania sql"; 
+				    else if ($result->num_rows > 0) {
+					while ($row = $result->fetch_assoc()) {
+					    array_push($array, $row['time']);
 					}
+					$n = count($array);
+					$first_time = strtotime($array[0]);
+					      
+					$last_time = strtotime($array[$n - 1]);
+					      
+					$difference = abs($last_time - $first_time);
+					$minutes   = round($difference / 60);
+				}
+				
+				echo "<table>";
+			  
+				echo "<tr>";
+				      echo " <td><b>Request HTTP Method</b></td>";
+				      echo " <td><b>Ilość zapytań na minutę</b></td>";
+				echo "</tr>";
+			      
+				$sql_all = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
+				$result_all = $conn->query($sql_all);
+				if ($result_all == false) echo "Błąd zapytania sql"; 
+				else if ($result_all->num_rows > 0) {
+				while ($row = $result_all->fetch_assoc()) {
+					  echo "<tr>";
+					  $number = intval($row['req_number']);
+					  echo "<td>".$row['http_method'] ."</td>";
+					  echo "<td>".$number/$minutes."</td>";
+					
+				  }
+			      } else {
+				  echo "Brak danych"; 
 			      }
 			      
-			echo "</table>";
-
-			  
+			      echo "</table>";
+	  
 		?>
 		
 		</div>
 
 
 			 
-		<?php	  
-			  
-		  
+		<?php	   
 			  $conn->close(); 
 		
 		?>
