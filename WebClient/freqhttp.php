@@ -390,74 +390,50 @@
 		<?php
  
 			  
-			echo "<table>";
-			  
-			      echo "<tr>";
-				  echo " <td><b>Request HTTP Method</b></td>";
-				  echo " <td><b>Ilość zapytań na minutę</b></td>";
-			      echo "</tr>";
+			
 			      
 			      //echo "lalala";
 			      
-			      $sql_all = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
-			      $result_all = $conn->query($sql_all);
-			      if ($result_all == false) echo "Błąd zapytania sql"; 
-			      else if ($result_all->num_rows > 0) {
-					//echo "lalala2";
-					$sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'order by time"; 
-					$result = $conn->query($sql); 
-					$array = array();
-					if ($result == false) echo "Błąd zapytania sql"; 
-					else if ($result->num_rows > 0) {
-					      while ($row = $result->fetch_assoc()) {
-						  array_push($array, $row['time']);
-					      }
-					      $n = count($array);
-					      $first_time = $array[0];
-					     // echo $first_time;
-					      
-					      $last_time = $array[$n - 1];
-					     //  echo $last_time;
-					      
-					      $difference = abs($last_time - $first_time);
-					      $minutes   = round($difference / 60);
-					      //echo $minutes;
-					      
-					      
-					      /*while ($row = $result_all->fetch_assoc()) {
-							  echo "<tr>";
-							  echo "<td>".$row['http_method'] ."</td>";
-							//  $number = intval($row['req_number']);
-							 // echo $number;
-							 // echo "<td>".($row['req_number']/$minutes) ."</td>";
-					
-						    }
-					      } else {
-						    echo "Brak danych"; 
-					      }*/
-					      
-					     // echo $difference;
-					      
-					      
-					//  $first_time = $result[0].$row['session'];
-                                          //echo "lala";
-					//  echo $first_time;
-					//  $last_time = $result[num_rows].$row['time'];
-					/*  
-					  $difference = intval($last_time - $first_time);
-					  echo $difference;
-					    while ($row = $result->fetch_assoc()) {
-						    echo "<tr>";
-						    echo "<td>".$row['http_method'] ."</td>";
-						//    echo "<td>".intval($row['req_number']) / $difference."</td>";
-						  
-					    }*/
-					} else {
-					    echo "Brak danych"; 
+			        $sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'order by time"; 
+			        $result = $conn->query($sql); 
+			        $array = array();
+			        if ($result == false) echo "Błąd zapytania sql"; 
+				    else if ($result->num_rows > 0) {
+					while ($row = $result->fetch_assoc()) {
+					    array_push($array, $row['time']);
 					}
+					$n = count($array);
+					$first_time = strtotime($array[0]);
+					      
+					$last_time = strtotime($array[$n - 1]);
+					      
+					$difference = abs($last_time - $first_time);
+					$minutes   = round($difference / 60);
+				}
+				
+				echo "<table>";
+			  
+				echo "<tr>";
+				      echo " <td><b>Request HTTP Method</b></td>";
+				      echo " <td><b>Ilość zapytań na minutę</b></td>";
+				echo "</tr>";
+			      
+				$sql_all = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
+				$result_all = $conn->query($sql_all);
+				if ($result_all == false) echo "Błąd zapytania sql"; 
+				else if ($result_all->num_rows > 0) {
+				while ($row = $result_all->fetch_assoc()) {
+					  echo "<tr>";
+					  $number = intval($row['req_number']);
+					  echo "<td>".$row['http_method'] ."</td>";
+					  echo "<td>".$number/$minutes."</td>";
+					
+				  }
+			      } else {
+				  echo "Brak danych"; 
 			      }
 			      
-			echo "</table>";
+			      echo "</table>";
 
 			  
 		?>
