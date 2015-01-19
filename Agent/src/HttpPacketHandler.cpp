@@ -128,9 +128,13 @@ void HttpPacketHandler::setTimeBounds(time_t startTime, time_t stopTime) {
 	this->httpPackets.clear();
 	this->dataReady.store(false);
 
+	tm tm = *localtime(&(this->startTime));
+
 	clog << "> Starting new filtering.\n"
-		 << "> Start: " << ctime(&(this->startTime))
-		 << "> Stop: " << ctime(&(this->stopTime)) << endl;
+		 << "> Start: " << asctime(&tm);
+
+	tm = *localtime(&(this->stopTime));
+	clog << "> Stop: " << asctime(&tm) << endl;
 	pthread_mutex_unlock(&timeAccess);
 }
 
