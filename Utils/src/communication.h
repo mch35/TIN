@@ -40,6 +40,7 @@ enum WebCommand : unsigned char {
 	W_LIST_CLIENTS = 4
 };
 
+
 // Command to be sent by server. 
 struct command {
 	CommandType type;
@@ -49,13 +50,14 @@ struct command {
 // length of serialized command structure
 const int COMMAND_LENGTH = 5; 
 const int INT_LENGTH = 4; 
-const int R_D_LENGTH = 9; 
+const int R_D_LENGTH = 12; 
 
 // Single HTTP request data - sent by client to server
 struct request_data {
 	time_t time;  	
 	HttpMethod method; 
 	in_addr receiver_ip;  
+	char response[3];
 };
 
 unsigned char* serialize_command(command); 
