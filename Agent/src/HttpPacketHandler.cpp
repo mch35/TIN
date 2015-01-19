@@ -27,9 +27,15 @@ HttpPacketHandler::~HttpPacketHandler() {
 	pthread_mutex_destroy(&timeAccess);
 }
 
+bool HttpPacketHandler::tryMatch(const shared_ptr<Packet>& tcpPacket,
+		const regex& txt_regex, cmatch& m) {
+	return regex_search((char*) (tcpPacket->data), m, txt_regex);
+}
+
 void* HttpPacketHandler::handleTcpPackets() {
 	EnumParser<HttpMethod> enumParser;
-	regex txt_regex("^([a-zA-Z]+)");
+	regex requestRegex("^([a-zA-Z]+)");
+	regex responseRegex("^HTTP/[0-9].[0-9] ([0-9]+) ");
 	cmatch m;
 	while (running.load()) {
 		shared_ptr<Packet> tcpPacket = tcpPacketsQueue->get();
@@ -38,18 +44,28 @@ void* HttpPacketHandler::handleTcpPackets() {
 		time_t packetTime = tcpPacket->timestamp;
 
 		if (isInTime(packetTime)) {
-			if (regex_search((char*) tcpPacket->data, m, txt_regex)) {
-				try {
+			try {
+				request_data data;
+				bool matched = false;
 
-					request_data data;
+				if (matched = tryMatch(tcpPacket, responseRegex, m))
+				{
+					int responseCode = atoi(m.str(1).c_str());
+					data.method = HttpMethod::DELETE; // TODO
+				}
+				else if (matched = tryMatch(tcpPacket, requestRegex, m)) {
 					data.method = enumParser.parse(m.str(0));
+
+				}
+
+				if(matched)
+				{
 					data.receiver_ip.s_addr = ntohl(tcpPacket->ip_header.daddr);
 					data.time = packetTime;
-
 					httpPackets.push_back(data);
-				} catch (const std::runtime_error& e) {
-					clog << "Not a HTTP packet!" << std::endl;
 				}
+			} catch (const std::runtime_error& e) {
+				clog << "Not a HTTP packet! " << e.what() << std::endl;
 			}
 		} else {
 			if (!dataReady.load() && packetTime < stopTime) {

@@ -36,7 +36,8 @@ void Connector::listeningThreadBody() {
 			break;
 		}
 		command c = deserialize_command(buffer);
-		std::clog << "Received command " << c.type << std::endl;
+		tm arrived = *localtime(&c.time);
+		clog << "Received command " << c.type << " time: " << asctime(&arrived) << std::endl;
 		switch (c.type) {
 		case START:
 			response[0] = (unsigned char) start(c.time);
@@ -142,11 +143,11 @@ time_t startTime;
 time_t stopTime;
 
 ClientResponse Connector::start(time_t when) {
-	startTime = time(0) + 10;
+	startTime = when;
 	return OK;
 }
 ClientResponse Connector::stop(time_t when) {
-	stopTime = startTime + 1000000;
+	stopTime = when;
 	try
 	{
 		agent->setTimeBounds(startTime, stopTime);
