@@ -169,7 +169,9 @@ void* web_listener(void*) {
 }
 
 time_t convert_time(string s) { 
-	struct tm tm; 
+	struct tm tm;
+	time_t now = time(0);
+	tm = *gmtime(&now);
 	strptime(s.c_str(), "%Y-%m-%d %H:%M:%S", &tm); 
 	time_t t = mktime(&tm); 
 	return mktime(&tm); 
