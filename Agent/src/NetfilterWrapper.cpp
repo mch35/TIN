@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <string>
+#include <cstring>
 #include <time.h>
 #include <arpa/inet.h>
 
