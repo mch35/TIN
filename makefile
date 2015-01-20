@@ -9,6 +9,7 @@ server:
 move:
 	mv Agent/src/Agent bin
 	mv Server/src/server bin
+	mv Agent/src/tester bin
 
 .PHONY: move
 
