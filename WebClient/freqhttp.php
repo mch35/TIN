@@ -85,9 +85,36 @@
 			color: red;
 		}
 		
+
+		table {
+			font-family: verdana,arial,sans-serif;
+			font-size:11px;
+			color:#333333;
+			border-width: 1px;
+			border-color: #666666;
+			border-collapse: collapse;
+			width:100%;
+		}
+		tr {
+			border-width: 1px;
+			padding: 8px;
+			border-style: solid;
+			border-color: #666666;
+			background-color: #dedede;
+		}
+		td {
+			border-width: 1px;
+			padding: 8px;
+			border-style: solid;
+			border-color: #666666;
+			background-color: #f0f0f0;
+		}
+
+
+		
 		#container {
 			position: relative;
-			width: 1000px; /* width + border for IE 5.x */
+			width: 1000px; 
 			border: solid #036;
 			border-width: 12 3px;
 			margin: auto;
@@ -110,6 +137,27 @@
 		}
 		
 		#users_table {
+			xbackground: white 134px 0;
+			xpadding: 1px 1em 2em 1em;
+			background: white;
+			padding: 25px 25px 25px 45px;
+		}
+		
+		#http_methods {
+			xbackground: white 134px 0;
+			xpadding: 1px 1em 2em 1em;
+			background: white;
+			padding: 25px 25px 25px 45px;
+		}
+		
+		#http_methods_all {
+			xbackground: white 134px 0;
+			xpadding: 1px 1em 2em 1em;
+			background: white;
+			padding: 25px 25px 25px 45px;
+		}
+		
+		#http_methods_frequency {
 			xbackground: white 134px 0;
 			xpadding: 1px 1em 2em 1em;
 			background: white;
@@ -139,6 +187,10 @@
 			<form>
 				<label for="agent_id">Id agenta</label>
 				<input type="text" name="agent_id" />
+				<label for="time_to_measure">Czas do pomiaru</label>
+				<input type="text" name="time_to_measure" />
+				</br>
+				</br>
 				<input type="submit" class="button" name="start" value="Start pomiaru" />
 				<input type="submit" class="button" name="stop" value="Stop pomiaru" />
 				<input type="submit" class="button" name="get_data" value="Pobierz dane" />
@@ -165,16 +217,16 @@
 			date_default_timezone_set("Europe/Warsaw"); 
 			
 			if($_GET){
-			    if(isset($_GET['start']) && !empty($_GET['agent_id']) ){
+			    if(isset($_GET['start']) && !empty($_GET['agent_id']) && !empty($_GET['time_to_measure']) ){
 			    
-				send_start($_GET['agent_id'],new DateTime());
+				send_start($_GET['agent_id'],$_GET['time_to_measure']);
 				$response = recv_response(1); 
 				if ($response == "1") echo "Odpowiedź: OK\n"; 
 				else echo "Odpowiedź: ERROR\n"; 
 				
-			    }elseif(isset($_GET['stop']) && !empty($_GET['agent_id'])){
+			    }elseif(isset($_GET['stop']) && !empty($_GET['agent_id']) && !empty($_GET['time_to_measure']) ){
 			    
-				send_stop($_GET['agent_id'], new DateTime());
+				send_stop($_GET['agent_id'], $_GET['time_to_measure']);
 				$response = recv_response(1); 
 				if ($response == "1") echo "Odpowiedź: OK\n"; 
 				else echo "Odpowiedź: ERROR\n"; 
@@ -206,25 +258,193 @@
 		
 		<div id="users_table" align="center">
 		
-		<h3>Lista agentów </h3>
+		<h3>Lista sesji:</h3>
+
+		<?php
+		  
+			$conn = new mysqli("localhost", "root", ""); 
+			if ($conn->connect_error) {
+				die("Connection failed: " . $conn->connect_error); 
+			} 
+			  
+			  
+			  
+			echo "<table>";
+			  
+			      echo "<tr>";
+				  echo " <td><b>ID sesji</td>";
+				  echo " <td><b>ID klienta</b></td>";
+				  echo " <td><b>IP</b></td>";
+			      echo "</tr>";
+			      
+			  
+			     
+			      $sql = "select * from tin.sessions"; 
+			      $result = $conn->query($sql); 
+			      if ($result == false) echo "Błąd zapytania sql"; 
+			      else if ($result->num_rows > 0) {
+				  while ($row = $result->fetch_assoc()) {
+					  echo "<tr>";
+					  echo "<td>".$row['id'] ."</td>";
+					  echo "<td>".$row['client_id'] ."</td>";
+					  echo "<td>".$row['client_ip'] ."</td>";
+				  }
+			      } else {
+				  echo "Brak danych"; 
+			      }
+			      
+			echo "</table>";
+
+			  
+		?>
+		
+		</div>
+		
+		
+		<div id="http_methods_all" align="center">
+		
+		<h3>Wszytkie zapytania HTTP dla danej sesji:</h3>
+		
+		<form id="menu">
+			  <label for="session_id">Numer sesji</label>
+			  <input type="text" name="session_id" />
+		</form>
+
+		<?php
+	  
+			  
+			echo "<table>";
+			  
+			      echo "<tr>";
+				  echo " <td><b>Request ID</b></td>";
+				  echo " <td><b>Receiver ID</b></td>";
+				  echo " <td><b>Metoda HTTP</b></td>";
+				  echo " <td><b>Czas</b></td>";
+			      echo "</tr>";
+			      
+			      
+			     
+			      $sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'"; 
+			      $result = $conn->query($sql); 
+			      if ($result == false) echo "Błąd zapytania sql"; 
+			      else if ($result->num_rows > 0) {
+				  while ($row = $result->fetch_assoc()) {
+					  echo "<tr>";
+					  echo "<td>".$row['id'] ."</td>";
+					  echo "<td>".$row['receiver_ip'] ."</td>";
+					  echo "<td>".$row['http_method'] ."</td>";
+					  echo "<td>".$row['time'] ."</td>";
+					
+				  }
+			      } else {
+				  echo "Brak danych"; 
+			      }
+			      
+			echo "</table>";
+
+			  
+		?>
+		
+		</div>
+		
+		
+		<div id="http_methods" align="center">
+		
+		<h3>Suma różnych zapytań HTTP dla danej sesji:</h3>
 		
 		<?php
-			//  echo "connecting to database\n"; 
-		  
-			  $conn = new mysqli("localhost", "root", ""); 
-			  if ($conn->connect_error) {
-				  die("Connection failed: " . $conn->connect_error); 
-			  } 
+ 
 			  
-			 // echo "connected successfully\n";
+			echo "<table>";
 			  
+			      echo "<tr>";
+				  echo " <td><b>Request HTTP Method</b></td>";
+				  echo " <td><b>Ilość rządań</b></td>";
+			      echo "</tr>";
+			      
+			      
+			     
+			      $sql = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
+			      $result = $conn->query($sql); 
+			      if ($result == false) echo "Błąd zapytania sql"; 
+			      else if ($result->num_rows > 0) {
+				  while ($row = $result->fetch_assoc()) {
+					  echo "<tr>";
+					  echo "<td>".$row['http_method'] ."</td>";
+					  echo "<td>".$row['req_number'] ."</td>";
+					
+				  }
+			      } else {
+				  echo "Brak danych"; 
+			      }
+			      
+			echo "</table>";
+
+			  
+		?>
+		
+		</div>
+		
+		<div id="http_methods_frequency" align="center">
+		
+		<h3>Częstotliwość zapytań HTTP dla danej sesji:</h3>
+		
+		<?php
+			      
+			        $sql = "select * from tin.requests where session_id = '".$_GET['session_id']."'order by time"; 
+			        $result = $conn->query($sql); 
+			        $array = array();
+			        if ($result == false) echo "Błąd zapytania sql"; 
+				    else if ($result->num_rows > 0) {
+					while ($row = $result->fetch_assoc()) {
+					    array_push($array, $row['time']);
+					}
+					$n = count($array);
+					$first_time = strtotime($array[0]);
+					      
+					$last_time = strtotime($array[$n - 1]);
+					      
+					$difference = abs($last_time - $first_time);
+					$minutes   = round($difference / 60);
+				}
+				
+				echo "<table>";
+			  
+				echo "<tr>";
+				      echo " <td><b>Request HTTP Method</b></td>";
+				      echo " <td><b>Ilość zapytań na minutę</b></td>";
+				echo "</tr>";
+			      
+				$sql_all = "select http_method, count(*) as req_number from tin.requests where session_id = '".$_GET['session_id']."'group by http_method"; 
+				$result_all = $conn->query($sql_all);
+				if ($result_all == false) echo "Błąd zapytania sql"; 
+				else if ($result_all->num_rows > 0) {
+				while ($row = $result_all->fetch_assoc()) {
+					  echo "<tr>";
+					  $number = intval($row['req_number']);
+					  echo "<td>".$row['http_method'] ."</td>";
+					  echo "<td>".$number/$minutes."</td>";
+					
+				  }
+			      } else {
+				  echo "Brak danych"; 
+			      }
+			      
+			      echo "</table>";
+	  
+		?>
+		
+		</div>
+
+
+			 
+		<?php	   
 			  $conn->close(); 
 		
 		?>
 		  
 		
-		</div>
-
+		
 	</div>
 
 
