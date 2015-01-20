@@ -4,8 +4,8 @@
 #include "Utils/src/communication.h"
 
 
-int compare(unsigned char *c1, unsigned char *c2) {
-    for (int i=0; i< INT_LENGTH; ++i) {
+int compare(unsigned char *c1, unsigned char *c2, int size ) {
+    for (int i=0; i< size; ++i) {
         if ( *c1 != *c2 ) { 
 	  return 1;
 	}
@@ -34,8 +34,8 @@ BOOST_AUTO_TEST_SUITE( Serialization )
 
 BOOST_AUTO_TEST_CASE( int_serialization )
 {
-    unsigned char expected_serialized_int[] = { 0x00, 0x01, 0xe2, 0x40 };
-    BOOST_CHECK( compare(serialize_int(123456) , expected_serialized_int) == 0 );
+    unsigned char expected_int[] = { 0x00, 0x01, 0xe2, 0x40 };
+    BOOST_CHECK( compare(serialize_int(123456) , expected_int, INT_LENGTH) == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( int_deserialization )
@@ -59,18 +59,18 @@ BOOST_AUTO_TEST_CASE( request_serialization )
     req.time = 1421667051; 
     req.method = PUT;
     req.receiver_ip.s_addr = inet_addr("151.143.99.201");
-    unsigned char expected_serialized_request[] = { 0x54, 0xbc, 0xea, 0xeb, 0x03, 0xc9, 0x63, 0x8f, 0x97 };
-    BOOST_CHECK( compare(serialize_request(req), expected_serialized_request) == 0);
+    unsigned char expected_req[] = { 0x54, 0xbc, 0xea, 0xeb, 0x03, 0xc9, 0x63, 0x8f, 0x97, 0x00, 0x00, 0x00, 0x00 };
+    BOOST_CHECK( compare(serialize_request(req), expected_req, R_D_LENGTH) == 0);
 }
 
 BOOST_AUTO_TEST_CASE( request_deserialization )
 {
-    unsigned char serialized_request[] = { 0x54, 0xbc, 0xf2, 0x63, 0x06, 0xcd, 0xab, 0x75, 0x34 };
+    unsigned char serialized_req[] = { 0x54, 0xbc, 0xf2, 0x63, 0x06, 0xcd, 0xab, 0x75, 0x34, 0x00, 0x00, 0x00, 0x00 };
     request_data expected_req; 
     expected_req.time = 1421668963; 
     expected_req.method = TRACE;
     expected_req.receiver_ip.s_addr = inet_addr("52.117.171.205");
-    BOOST_CHECK(equals_requests(deserialize_request(serialized_request), expected_req) == 0);
+    BOOST_CHECK(equals_requests(deserialize_request(serialized_req), expected_req) == 0);
 }
 
 BOOST_AUTO_TEST_CASE( request_serialization_deserialization  )
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE( command_serialization )
     comm.type = START;
     comm.time = 1421671645;
     unsigned char expected_comm[] = { 0x01, 0x54, 0xbc, 0xfc, 0xdd };
-    BOOST_CHECK(compare(serialize_command(comm), expected_comm)==0);
+    BOOST_CHECK(compare(serialize_command(comm), expected_comm, COMMAND_LENGTH)==0);
 }
 
 BOOST_AUTO_TEST_CASE( command_deserialization )
