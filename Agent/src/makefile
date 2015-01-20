@@ -4,7 +4,7 @@ LIBS=-lnfnetlink -lmnl -lnetfilter_queue -lpthread -L/usr/local/lib
 PARAMS= -std=c++11
 CC=g++
 
-all: Agent
+all: Agent Test
 	
 Agent: Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp ../../Utils/src/serialization.cpp
 	$(CC) $(PARAMS) Agent.cpp HttpPacketHandler.cpp NetfilterWrapper.cpp Connector.cpp ../../Utils/src/serialization.cpp -o Agent $(LIBS)
@@ -20,6 +20,9 @@ HttpPacketHandler.o: HttpPacketHandler.cpp
 	
 serialization.o: ../../Utils/src/serialization.cpp
 	$(CC) $(PARAMS) serialization.cpp -o serialization.o
+
+Test: test.cpp
+	$(CC) test.cpp -o test
 
 clean:
 	rm -f *.o  
