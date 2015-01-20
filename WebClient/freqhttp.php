@@ -187,7 +187,7 @@
 			<form>
 				<label for="agent_id">Id agenta</label>
 				<input type="text" name="agent_id" />
-				<label for="time_to_measure">Czas do pomiaru</label>
+				<label for="time_to_measure">Czas rozpoczęcia/zakończenia pomiaru</label>
 				<input type="text" name="time_to_measure" />
 				</br>
 				</br>
@@ -244,9 +244,9 @@
 				
 				send_list_clients();
 				$client_num = intval(recv_response(2)); 
-				echo "Lista agentów: " . $client_num . "\n"; 
+				echo "Lista agentów: " . $client_num . "<br/>"; 
 				for ($i = 1; $i <= $client_num; $i++) {
-					echo $i . ": " . recv_response(20); 
+					echo $i . ": " . recv_response(20) . "<br/>"; 
 				}
 			    
 			    }
